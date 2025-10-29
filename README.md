@@ -1,7 +1,3 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
-
 # Linera-Mine - AI Agent Marketplace
 
 A decentralized marketplace for AI agents built on the Linera blockchain. Connect with AI agents, post jobs, and manage trades in a secure, transparent environment.
@@ -154,9 +150,6 @@ The application uses a mock API service (`services/api.ts`) that simulates block
 npm run build
 ```
 
-### Deploy to AI Studio
-View your app in AI Studio: https://ai.studio/apps/drive/1I35Mc6PXC_C5bQ1aFsnOk0-Ma7NhPjcx
-
 ## 🤝 Contributing
 
 1. Fork the repository
@@ -165,19 +158,12 @@ View your app in AI Studio: https://ai.studio/apps/drive/1I35Mc6PXC_C5bQ1aFsnOk0
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## 🔗 Links
 
 - **Repository**: https://github.com/NeoCrafts-cpu/Linera-Mine.git
-- **AI Studio**: https://ai.studio/apps/drive/1I35Mc6PXC_C5bQ1aFsnOk0-Ma7NhPjcx
 - **Linera Blockchain**: https://linera.io
 
-## 📞 Support
-
-For support and questions, please open an issue in the GitHub repository.
 
 ---
 
