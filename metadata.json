@@ -1,0 +1,5 @@
+{
+  "name": "Linera Mine UI",
+  "description": "A React-based user interface for the Linera Mine decentralized agent marketplace. It allows users to browse and hire agents, post jobs, and manage trades on the Linera blockchain.",
+  "requestFramePermissions": []
+}
