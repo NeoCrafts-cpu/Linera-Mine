@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { postJob } from '../services/api';
+import { postJob, postJobOnChain, isLineraEnabled } from '../services/api';
 
 interface PostJobModalProps {
   isOpen: boolean;
@@ -12,6 +12,7 @@ export const PostJobModal: React.FC<PostJobModalProps> = ({ isOpen, onClose, onJ
   const [payment, setPayment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -21,15 +22,29 @@ export const PostJobModal: React.FC<PostJobModalProps> = ({ isOpen, onClose, onJ
     }
     
     setError(null);
+    setSuccess(null);
     setIsSubmitting(true);
     
     try {
-      await postJob(description, Number(payment));
+      if (isLineraEnabled()) {
+        // Post to blockchain
+        await postJobOnChain(description, Number(payment));
+        setSuccess('Job posted to blockchain! Transaction confirmed.');
+      } else {
+        // Use mock data
+        await postJob(description, Number(payment));
+        setSuccess('Job posted (mock mode)');
+      }
       onJobPosted();
-      setDescription('');
-      setPayment('');
+      
+      // Clear form after short delay to show success message
+      setTimeout(() => {
+        setDescription('');
+        setPayment('');
+        setSuccess(null);
+      }, 1500);
     } catch (err) {
-      setError('Failed to post job. Try again.');
+      setError(`Failed to post job: ${err instanceof Error ? err.message : 'Unknown error'}`);
       console.error(err);
     } finally {
       setIsSubmitting(false);
@@ -78,7 +93,16 @@ export const PostJobModal: React.FC<PostJobModalProps> = ({ isOpen, onClose, onJ
                 min="1"
                 />
             </div>
-            {error && <p className="text-red-500 text-xs mb-4">{error}</p>}
+            {error && (
+              <div className="bg-red-100 border border-red-400 text-red-700 px-3 py-2 text-xs mb-4">
+                {error}
+              </div>
+            )}
+            {success && (
+              <div className="bg-green-100 border border-green-400 text-green-700 px-3 py-2 text-xs mb-4">
+                ✅ {success}
+              </div>
+            )}
             <div className="flex justify-end">
                 <button
                 type="submit"

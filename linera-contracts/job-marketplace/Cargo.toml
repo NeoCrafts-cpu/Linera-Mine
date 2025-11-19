@@ -1,0 +1,32 @@
+[package]
+name = "job-marketplace"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+async-graphql = "7.0"
+async-trait = "0.1"
+bcs = "0.1"
+linera-sdk = "0.15.6"
+serde = { version = "1.0", features = ["derive"] }
+thiserror = "2.0"
+
+[dev-dependencies]
+linera-sdk = { version = "0.15.6", features = ["test"] }
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[[bin]]
+name = "job-marketplace-contract"
+path = "src/contract.rs"
+
+[[bin]]
+name = "job-marketplace-service"
+path = "src/service.rs"
+
+[profile.release]
+debug = false
+lto = true
+opt-level = "s"
+strip = true

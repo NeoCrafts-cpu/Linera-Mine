@@ -1,5 +1,18 @@
 
 import { AgentProfile, Job, JobStatus, Owner, Bid } from '../types';
+import * as Linera from './linera';
+
+// Toggle between mock data and Linera blockchain
+// Set VITE_USE_LINERA=true in .env.local to enable Linera integration
+const USE_LINERA = import.meta.env.VITE_USE_LINERA === 'true';
+const CHAIN_ID = import.meta.env.VITE_LINERA_CHAIN_ID || '';
+const APP_ID = import.meta.env.VITE_LINERA_APP_ID || '';
+
+console.log('🔗 Linera Integration:', {
+  enabled: USE_LINERA,
+  chainId: CHAIN_ID ? `${CHAIN_ID.substring(0, 16)}...` : 'Not set',
+  appId: APP_ID ? `${APP_ID.substring(0, 16)}...` : 'Not set',
+});
 
 // MOCK DATA - This would be fetched from the Linera blockchain via GraphQL
 const MOCK_OWNERS: Owner[] = [
@@ -98,4 +111,118 @@ export const acceptJob = (jobId: number, agentOwner: Owner): Promise<Job> => {
         MOCK_JOBS[jobIndex].agent = agentOwner;
     }
     return simulateApiCall(MOCK_JOBS[jobIndex]);
+}
+
+// ==================== LINERA BLOCKCHAIN FUNCTIONS ====================
+
+/**
+ * Execute an operation on the Linera blockchain
+ */
+export async function executeOperation(operation: any): Promise<any> {
+  if (!USE_LINERA) {
+    throw new Error('Linera integration is not enabled. Set VITE_USE_LINERA=true');
+  }
+
+  const mutation = `
+    mutation($chainId: ID!, $operation: String!) {
+      executeOperation(
+        chainId: $chainId
+        operation: $operation
+      )
+    }
+  `;
+
+  try {
+    const result = await Linera.graphqlRequest(mutation, {
+      chainId: CHAIN_ID,
+      operation: JSON.stringify(operation),
+    });
+    console.log('✅ Operation executed on chain:', result);
+    return result;
+  } catch (error) {
+    console.error('❌ Failed to execute operation:', error);
+    throw error;
+  }
+}
+
+/**
+ * Register as an agent on the blockchain
+ */
+export async function registerAgentOnChain(name: string, serviceDescription: string): Promise<any> {
+  const operation = {
+    RegisterAgent: {
+      name,
+      service_description: serviceDescription,
+    },
+  };
+  return executeOperation(operation);
+}
+
+/**
+ * Post a job on the blockchain
+ */
+export async function postJobOnChain(description: string, payment: number): Promise<any> {
+  const operation = {
+    PostJob: {
+      description,
+      payment: payment.toString(),
+    },
+  };
+  return executeOperation(operation);
+}
+
+/**
+ * Place a bid on a job
+ */
+export async function placeBidOnChain(jobId: number): Promise<any> {
+  const operation = {
+    PlaceBid: {
+      job_id: jobId,
+    },
+  };
+  return executeOperation(operation);
+}
+
+/**
+ * Accept a bid (client accepts an agent's bid)
+ */
+export async function acceptBidOnChain(jobId: number, agent: Owner): Promise<any> {
+  const operation = {
+    AcceptBid: {
+      job_id: jobId,
+      agent,
+    },
+  };
+  return executeOperation(operation);
+}
+
+/**
+ * Complete a job
+ */
+export async function completeJobOnChain(jobId: number): Promise<any> {
+  const operation = {
+    CompleteJob: {
+      job_id: jobId,
+    },
+  };
+  return executeOperation(operation);
+}
+
+/**
+ * Check if Linera is enabled and configured
+ */
+export function isLineraEnabled(): boolean {
+  return USE_LINERA && !!CHAIN_ID && !!APP_ID;
+}
+
+/**
+ * Get blockchain configuration
+ */
+export function getLineraConfig() {
+  return {
+    enabled: USE_LINERA,
+    chainId: CHAIN_ID,
+    appId: APP_ID,
+    graphqlUrl: import.meta.env.VITE_LINERA_GRAPHQL_URL,
+  };
 }

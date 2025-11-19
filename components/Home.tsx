@@ -1,4 +1,5 @@
 import React from 'react';
+import LineraStatus from './LineraStatus';
 
 interface HomeProps {
   setView: (view: 'marketplace' | 'agents') => void;
@@ -27,6 +28,12 @@ export const Home: React.FC<HomeProps> = ({ setView }) => {
       <p className="text-sm md:text-base text-mc-text-dark max-w-3xl mx-auto mb-10 leading-relaxed" style={{ textShadow: '2px 2px #373737' }}>
         The decentralized marketplace for autonomous agents. Discover, hire, and pay AI agents with verifiable on-chain history on the Linera blockchain.
       </p>
+      
+      {/* Linera Connection Status - Compact */}
+      <div className="max-w-2xl mx-auto mb-12">
+        <LineraStatus />
+      </div>
+      
       <div className="flex justify-center space-x-4 mb-24">
         <button
           onClick={() => setView('marketplace')}

@@ -7,6 +7,7 @@ import { Home } from './components/Home';
 import Docs from './components/Docs';
 import { Owner } from './types';
 import { Footer } from './components/Footer';
+import { checkLineraConnection, getLineraWalletAddress, getChainId } from './services/linera';
 
 type View = 'home' | 'marketplace' | 'agents' | 'job-details' | 'docs';
 
@@ -15,6 +16,29 @@ const App: React.FC = () => {
   const [selectedJobId, setSelectedJobId] = useState<number | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [userAddress, setUserAddress] = useState<Owner | null>(null);
+
+  // Check Linera connection on mount
+  useEffect(() => {
+    const initLineraConnection = async () => {
+      const USE_LINERA = import.meta.env.VITE_USE_LINERA === 'true';
+      if (USE_LINERA) {
+        try {
+          const isLineraAvailable = await checkLineraConnection();
+          if (isLineraAvailable) {
+            const address = await getLineraWalletAddress();
+            if (address) {
+              setUserAddress(address as Owner);
+              setIsConnected(true);
+            }
+          }
+        } catch (error) {
+          console.error('Failed to connect to Linera:', error);
+        }
+      }
+    };
+    
+    initLineraConnection();
+  }, []);
 
   // This effect safely handles inconsistent states. If the view is 'job-details'
   // but no job is selected, it redirects to the marketplace.
@@ -34,11 +58,38 @@ const App: React.FC = () => {
     setActiveView('marketplace');
   }, []);
 
-  const handleConnect = () => {
-    // This is a mock connection. In a real app, you'd use a wallet library.
-    const mockUser: Owner = '0x' + 'a'.repeat(64) as Owner;
-    setUserAddress(mockUser);
-    setIsConnected(true);
+  const handleConnect = async () => {
+    const USE_LINERA = import.meta.env.VITE_USE_LINERA === 'true';
+    
+    if (USE_LINERA) {
+      // Connect to Linera blockchain
+      try {
+        const isLineraAvailable = await checkLineraConnection();
+        if (isLineraAvailable) {
+          const address = await getLineraWalletAddress();
+          const chainId = getChainId();
+          
+          if (address && chainId) {
+            setUserAddress(address as Owner);
+            setIsConnected(true);
+            console.log('Connected to Linera Chain:', chainId);
+            console.log('Wallet Address:', address);
+          } else {
+            alert('Linera connection available but no wallet address found. Check your .env.local configuration.');
+          }
+        } else {
+          alert('Cannot connect to Linera. Make sure the GraphQL service is running on port 8081.');
+        }
+      } catch (error) {
+        console.error('Linera connection error:', error);
+        alert('Failed to connect to Linera blockchain. See console for details.');
+      }
+    } else {
+      // Mock connection for development
+      const mockUser: Owner = '0x' + 'a'.repeat(64) as Owner;
+      setUserAddress(mockUser);
+      setIsConnected(true);
+    }
   };
 
   const handleDisconnect = () => {

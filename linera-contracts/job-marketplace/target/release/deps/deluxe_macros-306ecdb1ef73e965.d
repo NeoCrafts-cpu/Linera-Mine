@@ -1,0 +1,13 @@
+/mnt/e/AKINDO/linera-mine/linera-contracts/job-marketplace/target/release/deps/libdeluxe_macros-306ecdb1ef73e965.so: /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/deluxe-macros-0.5.0/lib.rs /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/deluxe-macros-0.5.0/util.rs /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/deluxe-macros-0.5.0/parse_attributes.rs /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/deluxe-macros-0.5.0/parse_meta_item.rs /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/deluxe-macros-0.5.0/types.rs /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/deluxe-macros-0.5.0/types/field.rs /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/deluxe-macros-0.5.0/types/struct.rs /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/deluxe-macros-0.5.0/types/variant.rs /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/deluxe-macros-0.5.0/types/enum.rs
+
+/mnt/e/AKINDO/linera-mine/linera-contracts/job-marketplace/target/release/deps/deluxe_macros-306ecdb1ef73e965.d: /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/deluxe-macros-0.5.0/lib.rs /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/deluxe-macros-0.5.0/util.rs /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/deluxe-macros-0.5.0/parse_attributes.rs /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/deluxe-macros-0.5.0/parse_meta_item.rs /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/deluxe-macros-0.5.0/types.rs /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/deluxe-macros-0.5.0/types/field.rs /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/deluxe-macros-0.5.0/types/struct.rs /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/deluxe-macros-0.5.0/types/variant.rs /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/deluxe-macros-0.5.0/types/enum.rs
+
+/root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/deluxe-macros-0.5.0/lib.rs:
+/root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/deluxe-macros-0.5.0/util.rs:
+/root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/deluxe-macros-0.5.0/parse_attributes.rs:
+/root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/deluxe-macros-0.5.0/parse_meta_item.rs:
+/root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/deluxe-macros-0.5.0/types.rs:
+/root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/deluxe-macros-0.5.0/types/field.rs:
+/root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/deluxe-macros-0.5.0/types/struct.rs:
+/root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/deluxe-macros-0.5.0/types/variant.rs:
+/root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/deluxe-macros-0.5.0/types/enum.rs:

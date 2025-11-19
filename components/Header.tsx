@@ -16,6 +16,9 @@ export const Header: React.FC<HeaderProps> = ({ activeView, setActiveView, isCon
     const activeClasses = "bg-mc-stone text-white border-mc-ui-border-dark";
     const inactiveClasses = "bg-mc-ui-bg text-black border-mc-ui-border-light hover:bg-mc-stone hover:text-white";
     
+    const USE_LINERA = import.meta.env.VITE_USE_LINERA === 'true';
+    const CHAIN_ID = import.meta.env.VITE_LINERA_CHAIN_ID;
+    
     const formatAddress = (address: string) => {
         return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`;
     };
@@ -50,7 +53,14 @@ export const Header: React.FC<HeaderProps> = ({ activeView, setActiveView, isCon
                     {isConnected && userAddress ? (
                         <div className="bg-mc-ui-bg-dark border-2 border-mc-ui-border-dark flex items-center p-2 text-xs">
                             <span className="text-mc-grass mr-2 text-lg">●</span>
-                            <span className="text-mc-text-light" title={userAddress}>{formatAddress(userAddress)}</span>
+                            <div className="flex flex-col">
+                                <span className="text-mc-text-light" title={userAddress}>{formatAddress(userAddress)}</span>
+                                {USE_LINERA && CHAIN_ID && (
+                                    <span className="text-mc-text-dark text-[10px]" title={`Chain: ${CHAIN_ID}`}>
+                                        ⛓️ Linera
+                                    </span>
+                                )}
+                            </div>
                              <button onClick={onDisconnect} className="ml-3 text-mc-text-dark hover:text-white" title="Disconnect">
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                   <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -62,7 +72,7 @@ export const Header: React.FC<HeaderProps> = ({ activeView, setActiveView, isCon
                             onClick={onConnect}
                             className="bg-mc-diamond hover:bg-opacity-80 text-white py-2 px-4 border-2 border-l-mc-ui-border-light border-t-mc-ui-border-light border-r-mc-ui-border-dark border-b-mc-ui-border-dark flex items-center text-xs"
                         >
-                            Connect Wallet
+                            {USE_LINERA ? '⛓️ Connect to Linera' : 'Connect Wallet'}
                         </button>
                     )}
                 </div>

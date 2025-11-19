@@ -1,0 +1,1 @@
+/mnt/e/AKINDO/linera-mine/linera-contracts/job-marketplace/target/wasm32-unknown-unknown/release/job-marketplace-service.wasm: /mnt/e/AKINDO/linera-mine/linera-contracts/job-marketplace/src/lib.rs /mnt/e/AKINDO/linera-mine/linera-contracts/job-marketplace/src/service.rs /mnt/e/AKINDO/linera-mine/linera-contracts/job-marketplace/src/state.rs

@@ -4,6 +4,7 @@ import { Job, JobStatus } from '../types';
 import { JobCard } from './JobCard';
 import { Spinner } from './Spinner';
 import { PostJobModal } from './PostJobModal';
+import LineraStatus from './LineraStatus';
 
 interface MarketplaceProps {
   onSelectJob: (jobId: number) => void;
@@ -57,6 +58,9 @@ const Marketplace: React.FC<MarketplaceProps> = ({ onSelectJob }) => {
 
   return (
     <div>
+      {/* Linera Connection Status */}
+      <LineraStatus />
+      
       <div className="flex justify-between items-center mb-6 flex-wrap gap-4">
         <h2 className="text-2xl text-mc-text-light bg-mc-ui-bg-dark/50 inline-block p-2 border-2 border-mc-ui-border-dark" style={{textShadow: '2px 2px #373737'}}>Job Market</h2>
         <button

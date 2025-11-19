@@ -29,8 +29,10 @@ A decentralized marketplace for AI agents built on the Linera blockchain. Connec
 
 ### 🔗 Blockchain Integration
 - Built for Linera blockchain compatibility
-- Secure wallet connection (mock implementation included)
+- GraphQL client for querying chain state
+- Real-time blockchain synchronization
 - Decentralized job and agent management
+- Local and testnet support
 
 ## 🛠️ Tech Stack
 
@@ -45,6 +47,8 @@ A decentralized marketplace for AI agents built on the Linera blockchain. Connec
 ### Prerequisites
 - Node.js (v16 or higher)
 - npm or yarn
+- Rust 1.86.0 (for Linera blockchain)
+- WSL2 or Linux environment (for Linera)
 
 ### Setup
 
@@ -54,24 +58,83 @@ A decentralized marketplace for AI agents built on the Linera blockchain. Connec
    cd Linera-Mine
    ```
 
-2. **Install dependencies**
+2. **Install frontend dependencies**
    ```bash
    npm install
    ```
 
-3. **Set up environment variables**
+3. **Install Linera (Optional - for blockchain features)**
+   
+   If you want to run the app with real blockchain integration:
+   
    ```bash
-   # Create .env.local file
-   echo "GEMINI_API_KEY=your_gemini_api_key_here" > .env.local
+   # Install Rust 1.86.0
+   rustup install 1.86.0
+   rustup default 1.86.0
+   rustup target add wasm32-unknown-unknown
+   
+   # Install Linera CLI tools
+   cargo install --locked linera-service@0.15.6
+   
+   # Verify installation
+   linera --version
    ```
 
-4. **Start development server**
+4. **Start Linera local network (Optional)**
+   
+   In a separate terminal, start a local Linera test network:
+   
+   ```bash
+   # Start local network with faucet
+   linera net up --with-faucet --faucet-port 8080
+   
+   # In another terminal, create a wallet and get test tokens
+   linera wallet init --faucet http://localhost:8080
+   linera wallet show  # Note your chain ID
+   ```
+   
+   The Linera node service and GraphiQL IDE will be available at `http://localhost:8080`
+
+5. **Set up environment variables**
+   
+   Create a `.env.local` file from the example:
+   
+   ```bash
+   cp .env.example .env.local
+   ```
+   
+   Edit `.env.local` and configure:
+   
+   ```bash
+   # Optional: AI features
+   GEMINI_API_KEY=your_gemini_api_key_here
+   
+   # Enable Linera blockchain (set to 'true' to use real blockchain)
+   VITE_USE_LINERA=false  # Set to 'true' when Linera network is running
+   
+   # Linera GraphQL endpoint
+   VITE_LINERA_GRAPHQL_URL=http://localhost:8080/graphql
+   
+   # Your chain ID (from 'linera wallet show')
+   VITE_LINERA_CHAIN_ID=your_chain_id_here
+   ```
+
+6. **Start development server**
    ```bash
    npm run dev
    ```
 
-5. **Open your browser**
+7. **Open your browser**
    Navigate to `http://localhost:5173`
+
+### Running with Linera
+
+To use the app with Linera blockchain:
+
+1. Make sure Linera local network is running (`linera net up`)
+2. Set `VITE_USE_LINERA=true` in `.env.local`
+3. Add your chain ID to `.env.local`
+4. Restart the dev server (`npm run dev`)
 
 ## 🏗️ Project Structure
 
@@ -149,13 +212,30 @@ The application uses a mock API service (`services/api.ts`) that simulates block
 
 ## 🚀 Deployment
 
+### Quick Deploy (3 Options)
+
+**1. Devnet (Fastest - 5 minutes)**
+```bash
+./scripts/deploy-devnet.sh
+```
+
+**2. Production VPS (Full Control - 20 minutes)**
+```bash
+./scripts/deploy-production.sh <server-ip> <your-domain.com>
+```
+
+**3. Vercel (Frontend Only - 2 minutes)**
+```bash
+npm install -g vercel
+vercel
+```
+
+📚 **Full deployment guide**: See [DEPLOYMENT_QUICKSTART.md](DEPLOYMENT_QUICKSTART.md) or [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md)
+
 ### Build for Production
 ```bash
 npm run build
 ```
-
-### Deploy to AI Studio
-View your app in AI Studio: https://ai.studio/apps/drive/1I35Mc6PXC_C5bQ1aFsnOk0-Ma7NhPjcx
 
 ## 🤝 Contributing
 

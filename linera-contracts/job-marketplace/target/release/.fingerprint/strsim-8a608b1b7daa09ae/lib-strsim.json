@@ -1,0 +1,1 @@
+{"rustc":13226066032359371072,"features":"[]","declared_features":"[]","target":14520901741915772287,"profile":17984201634715228204,"path":9083865073385859177,"deps":[],"local":[{"CheckDepInfo":{"dep_info":"release/.fingerprint/strsim-8a608b1b7daa09ae/dep-lib-strsim","checksum":false}}],"rustflags":["-Clink-arg=-fuse-ld=lld"],"config":15564086925336547597,"compile_kind":0}

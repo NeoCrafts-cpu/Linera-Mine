@@ -1,0 +1,238 @@
+/*!
+# Job Marketplace
+
+A decentralized job marketplace on Linera where users can:
+- Post jobs with payment
+- Agents can bid on jobs
+- Accept bids and complete jobs
+- Rate agents after completion
+*/
+
+use async_graphql::{Enum, Request, Response, SimpleObject};
+use linera_sdk::{
+    linera_base_types::{AccountOwner, Amount, Timestamp},
+    views::{linera_views, MapView, RegisterView, RootView, ViewStorageContext},
+};
+use serde::{Deserialize, Serialize};
+use thiserror::Error;
+
+/// Application state
+#[derive(RootView)]
+#[view(context = ViewStorageContext)]
+pub struct JobMarketplace {
+    /// All jobs in the marketplace
+    jobs: MapView<u64, Job>,
+    /// Agent profiles
+    agents: MapView<AccountOwner, AgentProfile>,
+    /// Next job ID
+    next_job_id: RegisterView<u64>,
+}
+
+impl JobMarketplace {
+    pub fn jobs(&self) -> &MapView<u64, Job> {
+        &self.jobs
+    }
+
+    pub fn jobs_mut(&mut self) -> &mut MapView<u64, Job> {
+        &mut self.jobs
+    }
+
+    pub fn agents(&self) -> &MapView<AccountOwner, AgentProfile> {
+        &self.agents
+    }
+
+    pub fn agents_mut(&mut self) -> &mut MapView<AccountOwner, AgentProfile> {
+        &mut self.agents
+    }
+
+    pub fn next_job_id(&self) -> &RegisterView<u64> {
+        &self.next_job_id
+    }
+
+    pub fn next_job_id_mut(&mut self) -> &mut RegisterView<u64> {
+        &mut self.next_job_id
+    }
+}
+
+/// Job status
+#[derive(Debug, Clone, Serialize, Deserialize, Enum, Copy, PartialEq, Eq)]
+pub enum JobStatus {
+    Posted,
+    InProgress,
+    Completed,
+}
+
+/// A job posting
+#[derive(Debug, Clone, Serialize, Deserialize, SimpleObject)]
+pub struct Job {
+    pub id: u64,
+    pub client: AccountOwner,
+    pub description: String,
+    pub payment: Amount,
+    pub status: JobStatus,
+    pub agent: Option<AccountOwner>,
+    pub bids: Vec<Bid>,
+    pub created_at: Timestamp,
+}
+
+/// A bid on a job
+#[derive(Debug, Clone, Serialize, Deserialize, SimpleObject)]
+pub struct Bid {
+    pub agent: AccountOwner,
+    pub bid_id: u64,
+    pub timestamp: Timestamp,
+}
+
+/// Agent profile
+#[derive(Debug, Clone, Serialize, Deserialize, SimpleObject)]
+pub struct AgentProfile {
+    pub owner: AccountOwner,
+    pub name: String,
+    pub service_description: String,
+    pub jobs_completed: u64,
+    pub total_rating_points: u64,
+}
+
+/// Operations that can be performed
+#[derive(Debug, Serialize, Deserialize)]
+pub enum Operation {
+    /// Post a new job
+    PostJob {
+        description: String,
+        payment: Amount,
+    },
+    /// Place a bid on a job
+    PlaceBid {
+        job_id: u64,
+    },
+    /// Accept a bid (job owner only)
+    AcceptBid {
+        job_id: u64,
+        agent: AccountOwner,
+    },
+    /// Complete a job (agent only)
+    CompleteJob {
+        job_id: u64,
+    },
+    /// Register as an agent
+    RegisterAgent {
+        name: String,
+        service_description: String,
+    },
+}
+
+/// Messages that can be sent between chains
+#[derive(Debug, Serialize, Deserialize)]
+pub enum Message {
+    /// Notify job posted
+    JobPosted {
+        job_id: u64,
+        description: String,
+        payment: Amount,
+    },
+    /// Notify bid accepted
+    BidAccepted {
+        job_id: u64,
+        agent: AccountOwner,
+    },
+    /// Transfer payment
+    TransferPayment {
+        amount: Amount,
+        recipient: AccountOwner,
+    },
+}
+
+/// Application errors
+#[derive(Debug, Error, Serialize, Deserialize)]
+pub enum JobMarketplaceError {
+    #[error("Job not found: {0}")]
+    JobNotFound(u64),
+    
+    #[error("Not authorized")]
+    NotAuthorized,
+    
+    #[error("Invalid job status")]
+    InvalidStatus,
+    
+    #[error("Agent not registered")]
+    AgentNotRegistered,
+    
+    #[error("Insufficient funds")]
+    InsufficientFunds,
+}
+
+/// GraphQL service interface
+pub struct JobMarketplaceService {
+    state: JobMarketplace,
+}
+
+impl JobMarketplaceService {
+    pub fn new(state: JobMarketplace) -> Self {
+        Self { state }
+    }
+    
+    pub async fn handle_query(self, request: Request) -> Response {
+        let schema = async_graphql::Schema::build(
+            QueryRoot { state: self.state },
+            MutationRoot,
+            async_graphql::EmptySubscription,
+        )
+        .finish();
+        
+        schema.execute(request).await
+    }
+}
+
+struct QueryRoot {
+    state: JobMarketplace,
+}
+
+#[async_graphql::Object]
+impl QueryRoot {
+    /// Get all jobs
+    async fn jobs(&self) -> Vec<Job> {
+        // Implementation will query the MapView
+        vec![]
+    }
+    
+    /// Get a specific job by ID
+    async fn job(&self, _id: u64) -> Option<Job> {
+        // Implementation will query the MapView
+        None
+    }
+    
+    /// Get all agents
+    async fn agents(&self) -> Vec<AgentProfile> {
+        // Implementation will query the MapView
+        vec![]
+    }
+    
+    /// Get agent profile
+    async fn agent(&self, _owner: String) -> Option<AgentProfile> {
+        // Implementation will query the MapView
+        None
+    }
+}
+
+struct MutationRoot;
+
+#[async_graphql::Object]
+impl MutationRoot {
+    /// Placeholder for mutations (handled by operations)
+    async fn placeholder(&self) -> bool {
+        true
+    }
+}
+
+/// Application ABI
+pub struct JobMarketplaceAbi;
+
+impl linera_sdk::abi::ContractAbi for JobMarketplaceAbi {
+    type Operation = Operation;
+    type Response = Result<(), JobMarketplaceError>;
+}
+
+impl linera_sdk::abi::ServiceAbi for JobMarketplaceAbi {
+    type Query = Request;
+    type QueryResponse = Response;
+}
