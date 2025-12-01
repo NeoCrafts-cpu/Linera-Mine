@@ -28,8 +28,9 @@ export interface AgentRating {
   timestamp: string;
 }
 
+// Bid can have full AgentProfile (mock) or just agent address (blockchain)
 export interface Bid {
-  agent: AgentProfile;
+  agent: AgentProfile | Owner; // AgentProfile for mock, Owner (address) for blockchain
   bidId: number;
   timestamp?: string;
 }

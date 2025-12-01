@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { getJobById, acceptJob, getAgents, getAgentsFromChain, getJobFromChain, isLineraEnabled, completeJobOnChain } from '../services/api';
+import { getJobById, acceptJob, getAgents, getAgentsFromChain, getJobFromChain, isLineraEnabled, completeJobOnChain, acceptBidOnChain, getCurrentUserAddress } from '../services/api';
 import { Job, Owner, AgentProfile, JobStatus } from '../types';
 import { AgentCard } from './AgentCard';
 import { Spinner } from './Spinner';
 import { JobStatusBadge } from './JobStatusBadge';
 import { RateAgentModal } from './RateAgentModal';
+import { PlaceBidModal } from './PlaceBidModal';
 
 interface JobDetailsProps {
   jobId: number;
@@ -43,6 +44,9 @@ const JobDetails: React.FC<JobDetailsProps> = ({ jobId, onBack }) => {
   const [isAccepting, setIsAccepting] = useState<Owner | null>(null);
   const [isCompleting, setIsCompleting] = useState<boolean>(false);
   const [showRateModal, setShowRateModal] = useState<boolean>(false);
+  const [showBidModal, setShowBidModal] = useState<boolean>(false);
+
+  const currentUser = getCurrentUserAddress();
 
   const fetchJobDetails = useCallback(async () => {
     try {
@@ -76,13 +80,22 @@ const JobDetails: React.FC<JobDetailsProps> = ({ jobId, onBack }) => {
     if (!job) return;
     setIsAccepting(agentOwner);
     try {
-      await acceptJob(job.id, agentOwner);
+      if (isLineraEnabled()) {
+        await acceptBidOnChain(job.id, agentOwner);
+      } else {
+        await acceptJob(job.id, agentOwner);
+      }
       await fetchJobDetails();
     } catch (error) {
       console.error("Failed to accept bid:", error);
     } finally {
         setIsAccepting(null);
     }
+  };
+
+  const handleBidPlaced = () => {
+    setShowBidModal(false);
+    fetchJobDetails();
   };
 
   const handleCompleteJob = async () => {
@@ -244,6 +257,28 @@ const JobDetails: React.FC<JobDetailsProps> = ({ jobId, onBack }) => {
               </div>
             </div>
           )}
+
+          {/* Place Bid Section - Show for Posted jobs when user is not the client */}
+          {(job.status === 'Posted' || job.status === 'POSTED') && job.client !== currentUser && (
+            <div className="bg-mc-diamond/10 border-2 border-mc-diamond p-4 flex items-center justify-between mt-4">
+              <div className="flex items-center gap-3">
+                <div className="text-2xl">💬</div>
+                <div>
+                  <div className="text-mc-diamond text-[10px] uppercase font-bold">Interested in this job?</div>
+                  <div className="text-mc-text-dark text-xs">
+                    Place a bid to show the client you're ready to work
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowBidModal(true)}
+                className="bg-mc-diamond text-white font-bold py-2 px-6 border-4 border-t-mc-ui-border-light border-l-mc-ui-border-light border-b-blue-800 border-r-blue-800 text-[10px] uppercase tracking-wider hover:brightness-110 transition-all flex items-center gap-2"
+              >
+                <span>⚡</span>
+                Place Bid
+              </button>
+            </div>
+          )}
         </div>
       </div>
       
@@ -259,31 +294,54 @@ const JobDetails: React.FC<JobDetailsProps> = ({ jobId, onBack }) => {
         {assignedAgentProfile ? (
           <AgentCard agent={assignedAgentProfile} />
         ) : job.bids.length > 0 ? (
-          job.bids.map(({ agent, bidId }) => (
-            <div key={bidId} className="relative group">
-              <AgentCard agent={agent} />
-              <button 
-                onClick={() => handleAcceptBid(agent.owner)}
-                disabled={isAccepting !== null}
-                className="absolute top-3 right-3 bg-mc-emerald text-white font-bold py-2 px-4 border-4 border-t-mc-ui-border-light border-l-mc-ui-border-light border-b-mc-emerald-dark border-r-mc-emerald-dark text-[10px] uppercase tracking-wider disabled:bg-mc-stone disabled:cursor-wait hover:brightness-110 transition-all flex items-center gap-2"
-              >
-                {isAccepting === agent.owner ? (
-                  <>
-                    <svg className="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    Accepting...
-                  </>
-                ) : (
-                  <>
-                    <span>✓</span>
-                    Accept Bid
-                  </>
+          job.bids.map((bid) => {
+            // Handle both mock data (bid.agent is AgentProfile) and blockchain data (bid.agent is string)
+            const isBlockchainBid = typeof bid.agent === 'string';
+            const bidAgentAddress = isBlockchainBid ? bid.agent : bid.agent?.owner;
+            const agentProfile = isBlockchainBid 
+              ? agents.find(a => a.owner === bid.agent)
+              : bid.agent;
+            
+            // Create a display profile even if we don't have full agent data
+            const displayProfile: AgentProfile = agentProfile || {
+              owner: bidAgentAddress as Owner,
+              name: `Agent ${String(bidAgentAddress).substring(0, 8)}...`,
+              serviceDescription: 'Agent profile not available',
+              jobsCompleted: 0,
+              rating: 0,
+              totalRatingPoints: 0,
+              totalRatings: 0,
+            };
+
+            return (
+              <div key={bid.bidId} className="relative group">
+                <AgentCard agent={displayProfile} />
+                {/* Show accept button only for job client */}
+                {job.client === currentUser && (
+                  <button 
+                    onClick={() => handleAcceptBid(displayProfile.owner)}
+                    disabled={isAccepting !== null}
+                    className="absolute top-3 right-3 bg-mc-emerald text-white font-bold py-2 px-4 border-4 border-t-mc-ui-border-light border-l-mc-ui-border-light border-b-mc-emerald-dark border-r-mc-emerald-dark text-[10px] uppercase tracking-wider disabled:bg-mc-stone disabled:cursor-wait hover:brightness-110 transition-all flex items-center gap-2"
+                  >
+                    {isAccepting === displayProfile.owner ? (
+                      <>
+                        <svg className="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Accepting...
+                      </>
+                    ) : (
+                      <>
+                        <span>✓</span>
+                        Accept Bid
+                      </>
+                    )}
+                  </button>
                 )}
-              </button>
-            </div>
-          ))
+              </div>
+            );
+          })
         ) : (
           <div className="md:col-span-2 lg:col-span-3 text-center py-12 bg-mc-ui-bg-dark border-4 border-mc-stone">
             <div className="text-4xl mb-4">
@@ -308,6 +366,15 @@ const JobDetails: React.FC<JobDetailsProps> = ({ jobId, onBack }) => {
           agentName={assignedAgentProfile.name}
           onClose={() => setShowRateModal(false)}
           onRated={handleRated}
+        />
+      )}
+
+      {/* Place Bid Modal */}
+      {showBidModal && job && (
+        <PlaceBidModal
+          job={job}
+          onClose={() => setShowBidModal(false)}
+          onBidPlaced={handleBidPlaced}
         />
       )}
     </div>
