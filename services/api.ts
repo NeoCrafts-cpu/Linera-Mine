@@ -158,7 +158,12 @@ const SIMULATED_LATENCY = 800; // in ms
 const simulateApiCall = <T,>(data: T): Promise<T> => {
   return new Promise(resolve => {
     setTimeout(() => {
-      resolve(JSON.parse(JSON.stringify(data))); // Deep copy to prevent mutation
+      // Handle undefined gracefully
+      if (data === undefined) {
+        resolve(undefined as T);
+      } else {
+        resolve(JSON.parse(JSON.stringify(data))); // Deep copy to prevent mutation
+      }
     }, SIMULATED_LATENCY);
   });
 };
@@ -504,54 +509,39 @@ export async function getJobsFiltered(
     return simulateApiCall(jobs.slice(start, end));
   }
 
-  const query = `
-    query GetJobsFiltered(
-      $filter: JobFilter,
-      $sortBy: JobSortField,
-      $sortDir: SortDirection,
-      $limit: Int,
-      $offset: Int
-    ) {
-      jobs(
-        filter: $filter,
-        sortBy: $sortBy,
-        sortDir: $sortDir,
-        limit: $limit,
-        offset: $offset
-      ) {
-        id
-        client
-        description
-        payment
-        status
-        agent
-        bids {
-          agent
-          bidId
-          timestamp
-        }
-        createdAt
-      }
-    }
-  `;
-  
+  // For Linera, fetch all jobs and filter client-side
+  // (The deployed contract doesn't have advanced filtering types)
   try {
-    const variables: any = {};
-    if (filter) {
-      variables.filter = {
-        status: filter.status,
-        minPayment: filter.minPayment?.toString(),
-        maxPayment: filter.maxPayment?.toString(),
-        client: filter.client,
-      };
-    }
-    if (sortBy) variables.sortBy = sortBy;
-    if (sortDir) variables.sortDir = sortDir;
-    if (limit) variables.limit = limit;
-    if (offset) variables.offset = offset;
+    const allJobs = await getJobsFromChain();
+    let jobs = [...allJobs];
     
-    const data = await executeApplicationQuery(query, variables);
-    return data.jobs || [];
+    // Apply filters client-side
+    if (filter?.status) {
+      const filterStatus = String(filter.status).toUpperCase();
+      jobs = jobs.filter(j => String(j.status).toUpperCase() === filterStatus);
+    }
+    if (filter?.minPayment) {
+      jobs = jobs.filter(j => j.payment >= filter.minPayment!);
+    }
+    if (filter?.maxPayment) {
+      jobs = jobs.filter(j => j.payment <= filter.maxPayment!);
+    }
+    
+    // Apply sorting client-side
+    if (sortBy === 'Payment') {
+      jobs.sort((a, b) => sortDir === 'Desc' ? b.payment - a.payment : a.payment - b.payment);
+    } else if (sortBy === 'Id') {
+      jobs.sort((a, b) => sortDir === 'Desc' ? b.id - a.id : a.id - b.id);
+    } else {
+      // Default: CreatedAt (use id as proxy)
+      jobs.sort((a, b) => sortDir === 'Desc' ? b.id - a.id : a.id - b.id);
+    }
+    
+    // Apply pagination
+    const start = offset || 0;
+    const end = limit ? start + limit : undefined;
+    
+    return jobs.slice(start, end);
   } catch (error) {
     console.error('Failed to fetch filtered jobs:', error);
     return [];
@@ -590,50 +580,32 @@ export async function getAgentsFiltered(
     return simulateApiCall(agents.slice(start, end));
   }
 
-  const query = `
-    query GetAgentsFiltered(
-      $filter: AgentFilter,
-      $sortBy: AgentSortField,
-      $sortDir: SortDirection,
-      $limit: Int,
-      $offset: Int
-    ) {
-      agents(
-        filter: $filter,
-        sortBy: $sortBy,
-        sortDir: $sortDir,
-        limit: $limit,
-        offset: $offset
-      ) {
-        owner
-        name
-        serviceDescription
-        jobsCompleted
-        totalRatingPoints
-        totalRatings
-        registeredAt
-      }
-    }
-  `;
-  
+  // For Linera, fetch all agents and filter client-side
+  // (The deployed contract doesn't have advanced filtering types)
   try {
-    const variables: any = {};
-    if (filter) {
-      variables.filter = {
-        minJobsCompleted: filter.minJobsCompleted,
-        minRating: filter.minRating,
-      };
-    }
-    if (sortBy) variables.sortBy = sortBy;
-    if (sortDir) variables.sortDir = sortDir;
-    if (limit) variables.limit = limit;
-    if (offset) variables.offset = offset;
+    const allAgents = await getAgentsFromChain();
+    let agents = [...allAgents];
     
-    const data = await executeApplicationQuery(query, variables);
-    return (data.agents || []).map((agent: any) => ({
-      ...agent,
-      rating: agent.totalRatings > 0 ? agent.totalRatingPoints / agent.totalRatings : 0,
-    }));
+    // Apply filters client-side
+    if (filter?.minJobsCompleted) {
+      agents = agents.filter(a => a.jobsCompleted >= filter.minJobsCompleted!);
+    }
+    if (filter?.minRating) {
+      agents = agents.filter(a => a.rating >= filter.minRating!);
+    }
+    
+    // Apply sorting client-side
+    if (sortBy === 'JobsCompleted') {
+      agents.sort((a, b) => sortDir === 'Desc' ? b.jobsCompleted - a.jobsCompleted : a.jobsCompleted - b.jobsCompleted);
+    } else if (sortBy === 'Rating') {
+      agents.sort((a, b) => sortDir === 'Desc' ? b.rating - a.rating : a.rating - b.rating);
+    }
+    
+    // Apply pagination
+    const start = offset || 0;
+    const end = limit ? start + limit : undefined;
+    
+    return agents.slice(start, end);
   } catch (error) {
     console.error('Failed to fetch filtered agents:', error);
     return [];
@@ -655,22 +627,23 @@ export async function getMarketplaceStats(): Promise<MarketplaceStats> {
     });
   }
 
-  const query = `
-    query GetStats {
-      stats {
-        totalJobs
-        postedJobs
-        inProgressJobs
-        completedJobs
-        totalAgents
-        totalPaymentVolume
-      }
-    }
-  `;
-  
+  // Calculate stats client-side from fetched data
   try {
-    const data = await executeApplicationQuery(query);
-    return data.stats;
+    const [jobs, agents] = await Promise.all([
+      getJobsFromChain(),
+      getAgentsFromChain()
+    ]);
+    
+    const statusStr = (j: Job) => String(j.status).toUpperCase();
+    
+    return {
+      totalJobs: jobs.length,
+      postedJobs: jobs.filter(j => statusStr(j) === 'POSTED').length,
+      inProgressJobs: jobs.filter(j => statusStr(j) === 'INPROGRESS' || statusStr(j) === 'IN_PROGRESS').length,
+      completedJobs: jobs.filter(j => statusStr(j) === 'COMPLETED').length,
+      totalAgents: agents.length,
+      totalPaymentVolume: jobs.reduce((sum, j) => sum + j.payment, 0).toString(),
+    };
   } catch (error) {
     console.error('Failed to fetch stats:', error);
     return {

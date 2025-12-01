@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { getJobById, acceptJob, getAgents, isLineraEnabled, completeJobOnChain } from '../services/api';
+import { getJobById, acceptJob, getAgents, getAgentsFromChain, getJobFromChain, isLineraEnabled, completeJobOnChain } from '../services/api';
 import { Job, Owner, AgentProfile, JobStatus } from '../types';
 import { AgentCard } from './AgentCard';
 import { Spinner } from './Spinner';
@@ -47,9 +47,14 @@ const JobDetails: React.FC<JobDetailsProps> = ({ jobId, onBack }) => {
   const fetchJobDetails = useCallback(async () => {
     try {
         setLoading(true);
+        
+        // Use Linera functions when enabled
+        const jobPromise = isLineraEnabled() ? getJobFromChain(jobId) : getJobById(jobId);
+        const agentsPromise = isLineraEnabled() ? getAgentsFromChain() : getAgents();
+        
         const [jobData, agentsData] = await Promise.all([
-            getJobById(jobId),
-            getAgents()
+            jobPromise,
+            agentsPromise
         ]);
         
         if (jobData) {
