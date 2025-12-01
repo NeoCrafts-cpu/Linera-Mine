@@ -28,6 +28,10 @@ linera wallet request-chain --faucet="$LINERA_FAUCET_URL"
 CHAIN_ID=$(linera wallet show 2>&1 | grep -oE '[a-f0-9]{64}' | head -1)
 echo "⛓️  Chain ID: $CHAIN_ID"
 
+# Get wallet owner
+WALLET_OWNER=$(linera wallet show 2>&1 | grep -oE '0x[a-f0-9]{64}' | head -1)
+echo "👤 Wallet Owner: $WALLET_OWNER"
+
 # Build the Job Marketplace contract
 echo ""
 echo "🔨 Building Job Marketplace smart contract..."
@@ -76,6 +80,7 @@ VITE_LINERA_CHAIN_ID=$CHAIN_ID
 VITE_LINERA_APP_ID=$APP_ID
 VITE_LINERA_PORT=9001
 VITE_LINERA_GRAPHQL_URL=http://localhost:9001/chains/$CHAIN_ID/applications/$APP_ID
+VITE_LINERA_WALLET_OWNER=$WALLET_OWNER
 EOF
 
 echo "📝 Frontend configuration:"

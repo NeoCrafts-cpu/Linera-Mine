@@ -27,6 +27,11 @@ const getAppUrl = () => {
   return GRAPHQL_URL;
 };
 
+// Get the node service URL (without application path)
+const getNodeServiceUrl = () => {
+  return `http://localhost:${PORT}`;
+};
+
 interface GraphQLResponse<T> {
   data?: T;
   errors?: Array<{ message: string; locations?: any; path?: any }>;
@@ -72,6 +77,7 @@ export async function graphqlRequest<T = any>(
 
 /**
  * Query available chains for the current wallet
+ * This queries the node service, not the application
  */
 export async function getChains(): Promise<any> {
   const query = `
@@ -81,11 +87,35 @@ export async function getChains(): Promise<any> {
       }
     }
   `;
-  return graphqlRequest(query);
+  // Use node service URL, not app URL
+  const url = getNodeServiceUrl();
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ query }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const result = await response.json();
+    if (result.errors) {
+      throw new Error(`GraphQL errors: ${JSON.stringify(result.errors)}`);
+    }
+    return result.data;
+  } catch (error) {
+    console.error('Failed to get chains:', error);
+    throw error;
+  }
 }
 
 /**
  * Query chain information
+ * This queries the node service, not the application
  */
 export async function getChainInfo(chainId: string): Promise<any> {
   const query = `
@@ -99,11 +129,35 @@ export async function getChainInfo(chainId: string): Promise<any> {
       }
     }
   `;
-  return graphqlRequest(query, { chainId });
+  // Use node service URL, not app URL
+  const url = getNodeServiceUrl();
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ query, variables: { chainId } }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const result = await response.json();
+    if (result.errors) {
+      throw new Error(`GraphQL errors: ${JSON.stringify(result.errors)}`);
+    }
+    return result.data;
+  } catch (error) {
+    console.error('Failed to get chain info:', error);
+    throw error;
+  }
 }
 
 /**
  * Query applications deployed on a chain
+ * This queries the node service, not the application
  */
 export async function getApplications(chainId: string): Promise<any> {
   const query = `
@@ -115,7 +169,30 @@ export async function getApplications(chainId: string): Promise<any> {
       }
     }
   `;
-  return graphqlRequest(query, { chainId });
+  // Use node service URL, not app URL
+  const url = getNodeServiceUrl();
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ query, variables: { chainId } }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const result = await response.json();
+    if (result.errors) {
+      throw new Error(`GraphQL errors: ${JSON.stringify(result.errors)}`);
+    }
+    return result.data;
+  } catch (error) {
+    console.error('Failed to get applications:', error);
+    throw error;
+  }
 }
 
 /**
@@ -167,36 +244,41 @@ export async function healthCheck(): Promise<boolean> {
 
 /**
  * Check if Linera connection is available
+ * Tests by querying the application's hello endpoint
  */
 export async function checkLineraConnection(): Promise<boolean> {
   try {
-    const chains = await getChains();
-    return !!chains;
+    // Query the application to verify it's accessible
+    const url = getAppUrl();
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ query: '{ hello }' }),
+    });
+    
+    if (!response.ok) return false;
+    
+    const result = await response.json();
+    return !!result.data?.hello;
   } catch {
     return false;
   }
 }
 
 /**
- * Get the wallet address from environment or chain default owner
+ * Get the wallet address from environment
  */
 export async function getLineraWalletAddress(): Promise<string | null> {
-  try {
-    // First try to get from environment variable
-    const envOwner = import.meta.env.VITE_LINERA_WALLET_OWNER;
-    if (envOwner) {
-      return envOwner;
-    }
-    
-    // Fallback to querying chain info
-    const chainId = import.meta.env.VITE_LINERA_CHAIN_ID;
-    if (!chainId) return null;
-    
-    const info = await getChainInfo(chainId);
-    return info?.description?.owner || null;
-  } catch {
-    return null;
+  // Get from environment variable (set during deployment)
+  const envOwner = import.meta.env.VITE_LINERA_WALLET_OWNER;
+  if (envOwner) {
+    return envOwner;
   }
+  
+  // Fallback - return null if not configured
+  return null;
 }
 
 /**
