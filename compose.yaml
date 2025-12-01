@@ -1,0 +1,16 @@
+services:
+  linera-mine:
+    build: .
+    ports:
+      - "5173:5173"   # Frontend (Vite dev server)
+      - "8080:8080"   # Linera Faucet
+      - "9001:9001"   # Linera GraphQL service
+      - "13001:13001" # Linera validator
+    volumes:
+      - .:/build
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:5173"]
+      interval: 10s
+      timeout: 5s
+      start_period: 120s
+      retries: 12
