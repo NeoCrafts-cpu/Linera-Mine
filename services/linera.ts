@@ -1,7 +1,31 @@
 // Linera GraphQL client for connecting React frontend to Linera blockchain
 // This module provides typed GraphQL queries and mutations for your Linera application
 
-const GRAPHQL_URL = import.meta.env.VITE_LINERA_GRAPHQL_URL || 'http://localhost:8080/graphql';
+const GRAPHQL_URL = import.meta.env.VITE_LINERA_GRAPHQL_URL || 'http://localhost:8080';
+const CHAIN_ID = import.meta.env.VITE_LINERA_CHAIN_ID || '';
+const APP_ID = import.meta.env.VITE_LINERA_APP_ID || '';
+const PORT = import.meta.env.VITE_LINERA_PORT || '8080';
+
+// Build the base URL for the Linera service
+const getBaseUrl = () => {
+  // If GRAPHQL_URL already contains the full path, use it directly
+  if (GRAPHQL_URL.includes('/chains/')) {
+    return GRAPHQL_URL;
+  }
+  // Otherwise, construct the URL
+  return `http://localhost:${PORT}`;
+};
+
+// Build the application-specific URL
+const getAppUrl = () => {
+  if (GRAPHQL_URL.includes('/chains/')) {
+    return GRAPHQL_URL;
+  }
+  if (CHAIN_ID && APP_ID) {
+    return `${getBaseUrl()}/chains/${CHAIN_ID}/applications/${APP_ID}`;
+  }
+  return GRAPHQL_URL;
+};
 
 interface GraphQLResponse<T> {
   data?: T;
@@ -15,8 +39,9 @@ export async function graphqlRequest<T = any>(
   query: string,
   variables?: Record<string, any>
 ): Promise<T> {
+  const url = getAppUrl();
   try {
-    const response = await fetch(GRAPHQL_URL, {
+    const response = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -104,8 +129,8 @@ export async function queryApplicationState(
   variables?: Record<string, any>
 ): Promise<any> {
   // Application-specific queries go to:
-  // http://localhost:8080/chains/<chain-id>/applications/<application-id>
-  const appUrl = `http://localhost:8080/chains/${chainId}/applications/${applicationId}`;
+  // http://localhost:<port>/chains/<chain-id>/applications/<application-id>
+  const appUrl = `${getBaseUrl()}/chains/${chainId}/applications/${applicationId}`;
   
   const response = await fetch(appUrl, {
     method: 'POST',
@@ -133,7 +158,7 @@ export async function queryApplicationState(
  */
 export async function healthCheck(): Promise<boolean> {
   try {
-    const response = await fetch(GRAPHQL_URL.replace('/graphql', '/'));
+    const response = await fetch(getBaseUrl());
     return response.ok;
   } catch {
     return false;

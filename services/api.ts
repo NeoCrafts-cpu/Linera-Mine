@@ -7,6 +7,8 @@ import * as Linera from './linera';
 const USE_LINERA = import.meta.env.VITE_USE_LINERA === 'true';
 const CHAIN_ID = import.meta.env.VITE_LINERA_CHAIN_ID || '';
 const APP_ID = import.meta.env.VITE_LINERA_APP_ID || '';
+const LINERA_PORT = import.meta.env.VITE_LINERA_PORT || '8080';
+const LINERA_GRAPHQL_URL = import.meta.env.VITE_LINERA_GRAPHQL_URL || `http://localhost:${LINERA_PORT}`;
 
 console.log('🔗 Linera Integration:', {
   enabled: USE_LINERA,
@@ -197,8 +199,12 @@ export const acceptJob = (jobId: number, agentOwner: Owner): Promise<Job> => {
  * Linera applications are accessed at: /chains/{chainId}/applications/{appId}
  */
 function getApplicationEndpoint(): string {
-  const baseUrl = import.meta.env.VITE_LINERA_GRAPHQL_URL || 'http://localhost:8081';
-  return `${baseUrl}/chains/${CHAIN_ID}/applications/${APP_ID}`;
+  // If GRAPHQL_URL already has the full path, use it directly
+  if (LINERA_GRAPHQL_URL.includes('/chains/')) {
+    return LINERA_GRAPHQL_URL;
+  }
+  // Otherwise build the path
+  return `${LINERA_GRAPHQL_URL}/chains/${CHAIN_ID}/applications/${APP_ID}`;
 }
 
 /**
@@ -323,7 +329,8 @@ export function getLineraConfig() {
     enabled: USE_LINERA,
     chainId: CHAIN_ID,
     appId: APP_ID,
-    graphqlUrl: import.meta.env.VITE_LINERA_GRAPHQL_URL,
+    graphqlUrl: LINERA_GRAPHQL_URL,
+    port: LINERA_PORT,
   };
 }
 

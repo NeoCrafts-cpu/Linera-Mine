@@ -24,8 +24,8 @@ echo "💰 Initializing wallet from faucet..."
 linera wallet init --faucet="$LINERA_FAUCET_URL"
 linera wallet request-chain --faucet="$LINERA_FAUCET_URL"
 
-# Get chain info
-CHAIN_ID=$(linera wallet show 2>&1 | grep -oP 'e[0-9a-f]{63}' | head -1)
+# Get chain info - extract the default chain ID
+CHAIN_ID=$(linera wallet show 2>&1 | grep -oE '[a-f0-9]{64}' | head -1)
 echo "⛓️  Chain ID: $CHAIN_ID"
 
 # Build the Job Marketplace contract
@@ -34,12 +34,27 @@ echo "🔨 Building Job Marketplace smart contract..."
 cd /build/linera-contracts/job-marketplace
 cargo build --release --target wasm32-unknown-unknown
 
+# Find the WASM files (they could be in different locations depending on workspace setup)
+CONTRACT_WASM=$(find /build -name "job_marketplace_contract.wasm" -path "*/release/*" 2>/dev/null | head -1)
+SERVICE_WASM=$(find /build -name "job_marketplace_service.wasm" -path "*/release/*" 2>/dev/null | head -1)
+
+if [ -z "$CONTRACT_WASM" ] || [ -z "$SERVICE_WASM" ]; then
+    echo "❌ Error: Could not find WASM files"
+    echo "Searching for any wasm files..."
+    find /build -name "*.wasm" 2>/dev/null
+    exit 1
+fi
+
+echo "📄 Contract WASM: $CONTRACT_WASM"
+echo "📄 Service WASM: $SERVICE_WASM"
+
 # Publish and deploy the application
 echo ""
 echo "🚀 Publishing application to Linera..."
+cd /build/linera-contracts/job-marketplace
 APP_ID=$(linera publish-and-create \
-    target/wasm32-unknown-unknown/release/job_marketplace_{contract,service}.wasm \
-    --json-argument '{"job_counter": 0}' 2>&1 | tail -1)
+    "$CONTRACT_WASM" "$SERVICE_WASM" \
+    --json-argument '{"job_counter": 0}' 2>&1 | grep -oE '[a-f0-9]{64}' | tail -1)
 
 echo "📦 Application ID: $APP_ID"
 
@@ -54,13 +69,13 @@ echo ""
 echo "🎮 Setting up frontend..."
 cd /build
 
-# Create .env.local for frontend
+# Create .env.local for frontend - include full GraphQL path
 cat > .env.local << EOF
 VITE_USE_LINERA=true
 VITE_LINERA_CHAIN_ID=$CHAIN_ID
 VITE_LINERA_APP_ID=$APP_ID
 VITE_LINERA_PORT=9001
-VITE_LINERA_GRAPHQL_URL=http://localhost:9001
+VITE_LINERA_GRAPHQL_URL=http://localhost:9001/chains/$CHAIN_ID/applications/$APP_ID
 EOF
 
 echo "📝 Frontend configuration:"
@@ -84,7 +99,7 @@ echo "  ✅ LINERA MINE IS READY!"
 echo "=============================================="
 echo ""
 echo "  🌐 Frontend:     http://localhost:5173"
-echo "  📊 GraphQL:      http://localhost:9001"
+echo "  📊 GraphQL:      http://localhost:9001/chains/$CHAIN_ID/applications/$APP_ID"
 echo "  💧 Faucet:       http://localhost:8080"
 echo ""
 echo "  📦 App ID:       $APP_ID"
