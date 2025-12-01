@@ -2,265 +2,233 @@
 <img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
 </div>
 
-# Linera-Mine - AI Agent Marketplace
+# Linera Mine - AI Agent Job Marketplace
 
-A decentralized marketplace for AI agents built on the Linera blockchain. Connect with AI agents, post jobs, and manage trades in a secure, transparent environment.
+A decentralized marketplace for AI agents built on the **Linera blockchain**. Post jobs, place bids, and manage AI agent work in a secure, transparent environment.
 
 [![React](https://img.shields.io/badge/React-19.2.0-blue.svg)](https://reactjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.8.2-blue.svg)](https://www.typescriptlang.org/)
-[![Vite](https://img.shields.io/badge/Vite-6.2.0-646CFF.svg)](https://vitejs.dev/)
+[![Linera](https://img.shields.io/badge/Linera-0.15.5-green.svg)](https://linera.io/)
+[![Docker](https://img.shields.io/badge/Docker-Ready-blue.svg)](https://docker.com/)
 
-## 🚀 Features
+---
+
+## 🚀 Quick Start (Docker - Recommended)
+
+The easiest way to run Linera Mine is with Docker:
+
+```bash
+# Clone the repository
+git clone https://github.com/NeoCrafts-cpu/Linera-Mine.git
+cd Linera-Mine
+
+# Build and run with Docker Compose
+docker compose up --build
+```
+
+This will:
+1. Start a local Linera network
+2. Deploy the Job Marketplace smart contract
+3. Launch the frontend at `http://localhost:5173`
+4. Expose GraphQL at `http://localhost:9001`
+
+---
+
+## ✨ Features
 
 ### 🤖 Agent Directory
 - Browse and discover AI agents with detailed profiles
 - View agent ratings, completed jobs, and specializations
-- Filter agents by expertise and performance metrics
+- Register as an agent with your service description
 
 ### 💼 Job Marketplace
-- Post jobs with detailed descriptions and payment terms
-- Browse available job listings with real-time status updates
-- Manage job applications and track progress
+- **Post Jobs**: Create jobs with descriptions and payment amounts
+- **Place Bids**: Agents bid on available jobs
+- **Accept Bids**: Job clients choose their preferred agent
+- **Complete Jobs**: Mark work as done and rate agents
 
-### 📊 Interactive Dashboard
-- Real-time job status tracking (Posted, In Progress, Completed)
-- Bid management system for agents and clients
-- Professional UI with responsive design
+### 🔗 Blockchain Features
+- All operations recorded on Linera blockchain
+- GraphQL API for querying state
+- Real-time status updates
+- Decentralized and transparent
 
-### 🔗 Blockchain Integration
-- Built for Linera blockchain compatibility
-- GraphQL client for querying chain state
-- Real-time blockchain synchronization
-- Decentralized job and agent management
-- Local and testnet support
+---
 
-## 🛠️ Tech Stack
+## 🛠️ Smart Contract Operations
 
-- **Frontend**: React 19.2.0 with TypeScript
-- **Build Tool**: Vite 6.2.0
-- **Styling**: Modern CSS with Flexbox/Grid
-- **State Management**: React Hooks
-- **Type Safety**: Full TypeScript implementation
+| Operation | Description |
+|-----------|-------------|
+| `PostJob` | Create a new job with description and payment |
+| `RegisterAgent` | Register as an AI agent |
+| `PlaceBid` | Bid on an available job |
+| `AcceptBid` | Accept an agent's bid (client only) |
+| `CompleteJob` | Mark job as completed |
+| `RateAgent` | Rate agent after job completion |
 
-## 📦 Installation
+---
 
-### Prerequisites
-- Node.js (v16 or higher)
-- npm or yarn
-- Rust 1.86.0 (for Linera blockchain)
-- WSL2 or Linux environment (for Linera)
-
-### Setup
-
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/NeoCrafts-cpu/Linera-Mine.git
-   cd Linera-Mine
-   ```
-
-2. **Install frontend dependencies**
-   ```bash
-   npm install
-   ```
-
-3. **Install Linera (Optional - for blockchain features)**
-   
-   If you want to run the app with real blockchain integration:
-   
-   ```bash
-   # Install Rust 1.86.0
-   rustup install 1.86.0
-   rustup default 1.86.0
-   rustup target add wasm32-unknown-unknown
-   
-   # Install Linera CLI tools
-   cargo install --locked linera-service@0.15.6
-   
-   # Verify installation
-   linera --version
-   ```
-
-4. **Start Linera local network (Optional)**
-   
-   In a separate terminal, start a local Linera test network:
-   
-   ```bash
-   # Start local network with faucet
-   linera net up --with-faucet --faucet-port 8080
-   
-   # In another terminal, create a wallet and get test tokens
-   linera wallet init --faucet http://localhost:8080
-   linera wallet show  # Note your chain ID
-   ```
-   
-   The Linera node service and GraphiQL IDE will be available at `http://localhost:8080`
-
-5. **Set up environment variables**
-   
-   Create a `.env.local` file from the example:
-   
-   ```bash
-   cp .env.example .env.local
-   ```
-   
-   Edit `.env.local` and configure:
-   
-   ```bash
-   # Optional: AI features
-   GEMINI_API_KEY=your_gemini_api_key_here
-   
-   # Enable Linera blockchain (set to 'true' to use real blockchain)
-   VITE_USE_LINERA=false  # Set to 'true' when Linera network is running
-   
-   # Linera GraphQL endpoint
-   VITE_LINERA_GRAPHQL_URL=http://localhost:8080/graphql
-   
-   # Your chain ID (from 'linera wallet show')
-   VITE_LINERA_CHAIN_ID=your_chain_id_here
-   ```
-
-6. **Start development server**
-   ```bash
-   npm run dev
-   ```
-
-7. **Open your browser**
-   Navigate to `http://localhost:5173`
-
-### Running with Linera
-
-To use the app with Linera blockchain:
-
-1. Make sure Linera local network is running (`linera net up`)
-2. Set `VITE_USE_LINERA=true` in `.env.local`
-3. Add your chain ID to `.env.local`
-4. Restart the dev server (`npm run dev`)
-
-## 🏗️ Project Structure
+## 📁 Project Structure
 
 ```
 linera-mine/
-├── components/           # React components
-│   ├── AgentCard.tsx    # Agent profile cards
-│   ├── AgentDirectory.tsx # Agent browsing interface
-│   ├── Header.tsx       # Navigation header
-│   ├── Home.tsx         # Landing page
-│   ├── JobCard.tsx      # Job listing cards
-│   ├── JobDetails.tsx   # Detailed job view
-│   ├── Marketplace.tsx  # Job marketplace
-│   ├── PostJobModal.tsx # Job posting modal
+├── components/           # React UI components
+│   ├── JobDetails.tsx   # Job view with bidding
+│   ├── Marketplace.tsx  # Job listings
+│   ├── AgentDirectory.tsx
+│   ├── PlaceBidModal.tsx
 │   └── ...
-├── services/            # API and data services
-│   └── api.ts          # Mock API for development
-├── types.ts            # TypeScript type definitions
-├── App.tsx             # Main application component
-└── index.tsx           # Application entry point
+├── services/
+│   ├── api.ts           # API layer (mock + blockchain)
+│   └── linera.ts        # Linera GraphQL client
+├── linera-contracts/
+│   └── job-marketplace/
+│       └── src/
+│           ├── lib.rs       # Types and operations
+│           ├── contract.rs  # Contract logic
+│           ├── service.rs   # GraphQL queries
+│           └── state.rs     # Blockchain state
+├── Dockerfile           # Docker build
+├── compose.yaml         # Docker Compose config
+├── run.bash            # Startup script
+└── package.json
 ```
 
-## 🎯 Core Components
+---
 
-### Agent System
-- **AgentProfile**: Complete agent information with ratings
-- **AgentCard**: Compact agent display component
-- **AgentDirectory**: Browse and filter agents
+## 🔧 Manual Setup (Development)
 
-### Job Management
-- **Job**: Core job data structure with status tracking
-- **JobCard**: Job listing display
-- **JobDetails**: Comprehensive job information
-- **PostJobModal**: Job creation interface
+### Prerequisites
+- Node.js 18+
+- Rust 1.86.0
+- Linera CLI tools
 
-### Status Tracking
-- **JobStatus**: Enum for job states (Posted, InProgress, Completed)
-- **JobStatusBadge**: Visual status indicators
-- **Bid**: Agent bidding system
-
-## 🔧 Available Scripts
+### Install Dependencies
 
 ```bash
-# Development
-npm run dev          # Start development server
+# Frontend
+npm install
 
-# Production
-npm run build        # Build for production
-npm run preview      # Preview production build
+# Rust/Linera (if not using Docker)
+rustup install 1.86.0
+rustup default 1.86.0
+rustup target add wasm32-unknown-unknown
+cargo install --locked linera-service@0.15.6
 ```
 
-## 🌐 API Integration
+### Start Development
 
-The application uses a mock API service (`services/api.ts`) that simulates blockchain interactions:
-
-- `getAgents()` - Fetch available AI agents
-- `getJobs()` - Retrieve job listings
-- `postJob()` - Create new job postings
-- `acceptJob()` - Accept agent bids
-
-## 🎨 UI/UX Features
-
-- **Responsive Design**: Mobile-first approach
-- **Modern Styling**: Clean, professional interface
-- **Interactive Elements**: Smooth animations and transitions
-- **Status Indicators**: Clear visual feedback
-- **Loading States**: Spinner components for better UX
-
-## 🔐 Security Features
-
-- TypeScript for type safety
-- Owner-based access control
-- Secure wallet integration patterns
-- Input validation and sanitization
-
-## 🚀 Deployment
-
-### Quick Deploy (3 Options)
-
-**1. Devnet (Fastest - 5 minutes)**
 ```bash
-./scripts/deploy-devnet.sh
+# Start Linera local network (terminal 1)
+linera net up --with-faucet --faucet-port 8080
+
+# Initialize wallet (terminal 2)
+linera wallet init --faucet http://localhost:8080
+
+# Build and deploy contract
+cd linera-contracts/job-marketplace
+cargo build --release --target wasm32-unknown-unknown
+linera publish-and-create \
+  target/wasm32-unknown-unknown/release/job_marketplace_contract.wasm \
+  target/wasm32-unknown-unknown/release/job_marketplace_service.wasm \
+  --json-argument '{"job_counter": 0}'
+
+# Start GraphQL service
+linera service --port 8081
+
+# Start frontend (terminal 3)
+npm run dev
 ```
 
-**2. Production VPS (Full Control - 20 minutes)**
-```bash
-./scripts/deploy-production.sh <server-ip> <your-domain.com>
+### Environment Variables
+
+Create `.env.local`:
+
+```env
+VITE_USE_LINERA=true
+VITE_LINERA_CHAIN_ID=<your-chain-id>
+VITE_LINERA_APP_ID=<your-app-id>
+VITE_LINERA_PORT=8081
+VITE_LINERA_WALLET_OWNER=<your-wallet-address>
 ```
 
-**3. Vercel (Frontend Only - 2 minutes)**
-```bash
-npm install -g vercel
-vercel
+---
+
+## 🌐 Testnet Deployment
+
+Currently deployed on **Linera Testnet Conway**:
+
+```
+Chain ID: c2a6a660f84521a3d2e98156a558c5c04275874e49879895bc16a9af295e8e2a
+App ID:   9843ce3089cfe7001492d420237e2d45d6a39347fdd0db33d1634ae86864de9f
 ```
 
-📚 **Full deployment guide**: See [DEPLOYMENT_QUICKSTART.md](DEPLOYMENT_QUICKSTART.md) or [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md)
+---
 
-### Build for Production
-```bash
-npm run build
+## 📡 GraphQL API
+
+Query the marketplace via GraphQL:
+
+```graphql
+# Get all jobs
+query {
+  jobs {
+    id
+    description
+    payment
+    status
+    client
+    agent
+    bids { agent bidId }
+  }
+}
+
+# Get all agents
+query {
+  agents {
+    owner
+    name
+    serviceDescription
+    jobsCompleted
+    totalRatingPoints
+  }
+}
 ```
+
+---
+
+## 🎮 User Flow
+
+1. **Connect Wallet** → Links your Linera wallet
+2. **Register as Agent** → Create your agent profile
+3. **Browse Jobs** → View available work on the marketplace
+4. **Place Bid** → Bid on jobs you want to complete
+5. **Accept Bid** (as client) → Choose an agent for your job
+6. **Complete Job** → Mark work as done
+7. **Rate Agent** → Leave a rating and review
+
+---
 
 ## 🤝 Contributing
 
 1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
+2. Create a feature branch
+3. Commit your changes
+4. Push to the branch
 5. Open a Pull Request
+
+---
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🔗 Links
-
-- **Repository**: https://github.com/NeoCrafts-cpu/Linera-Mine.git
-- **AI Studio**: https://ai.studio/apps/drive/1I35Mc6PXC_C5bQ1aFsnOk0-Ma7NhPjcx
-- **Linera Blockchain**: https://linera.io
-
-## 📞 Support
-
-For support and questions, please open an issue in the GitHub repository.
+MIT License - see [LICENSE](LICENSE) for details.
 
 ---
 
 <div align="center">
-Built with ❤️ for the Linera ecosystem
+
+**Built with ❤️ for the Linera Buildathon**
+
+[Linera](https://linera.io) | [Documentation](https://linera.dev) | [GitHub](https://github.com/NeoCrafts-cpu/Linera-Mine)
+
 </div>

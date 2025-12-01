@@ -7,13 +7,13 @@ set -eu
 echo "=============================================="
 echo "  🔷 LINERA MINE - Job Marketplace for AI Agents"
 echo "=============================================="
+echo ""
 
 # Source nvm for node access
 export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
 
 # Start local Linera network with faucet
-echo ""
 echo "📡 Starting local Linera network..."
 eval "$(linera net helper)"
 linera_spawn linera net up --with-faucet
@@ -24,7 +24,7 @@ echo "💰 Initializing wallet from faucet..."
 linera wallet init --faucet="$LINERA_FAUCET_URL"
 linera wallet request-chain --faucet="$LINERA_FAUCET_URL"
 
-# Get chain info - extract the default chain ID
+# Get chain info
 CHAIN_ID=$(linera wallet show 2>&1 | grep -oE '[a-f0-9]{64}' | head -1)
 echo "⛓️  Chain ID: $CHAIN_ID"
 
