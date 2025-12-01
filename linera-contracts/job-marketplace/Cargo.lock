@@ -2113,6 +2113,7 @@ dependencies = [
  "async-graphql",
  "async-trait",
  "bcs",
+ "hex",
  "linera-sdk",
  "serde",
  "thiserror 2.0.17",

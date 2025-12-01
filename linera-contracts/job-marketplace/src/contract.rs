@@ -136,7 +136,7 @@ impl JobMarketplaceContract {
 
         // Get job
         let mut job = self.state
-            .jobs
+            .jobs()
             .get(&job_id)
             .await
             .expect("Failed to get job")
@@ -157,7 +157,7 @@ impl JobMarketplaceContract {
 
         // Update job
         self.state
-            .jobs
+            .jobs_mut()
             .insert(&job_id, job)
             .expect("Failed to update job");
 
@@ -172,7 +172,7 @@ impl JobMarketplaceContract {
 
         // Get job
         let mut job = self.state
-            .jobs
+            .jobs()
             .get(&job_id)
             .await
             .expect("Failed to get job")
@@ -193,7 +193,7 @@ impl JobMarketplaceContract {
         job.agent = Some(agent);
 
         self.state
-            .jobs
+            .jobs_mut()
             .insert(&job_id, job)
             .expect("Failed to update job");
 
@@ -211,7 +211,7 @@ impl JobMarketplaceContract {
 
         // Get job
         let mut job = self.state
-            .jobs
+            .jobs()
             .get(&job_id)
             .await
             .expect("Failed to get job")

@@ -116,96 +116,119 @@ export const acceptJob = (jobId: number, agentOwner: Owner): Promise<Job> => {
 // ==================== LINERA BLOCKCHAIN FUNCTIONS ====================
 
 /**
- * Execute an operation on the Linera blockchain
+ * Get the application GraphQL endpoint URL
+ * Linera applications are accessed at: /chains/{chainId}/applications/{appId}
  */
-export async function executeOperation(operation: any): Promise<any> {
+function getApplicationEndpoint(): string {
+  const baseUrl = import.meta.env.VITE_LINERA_GRAPHQL_URL || 'http://localhost:8081';
+  return `${baseUrl}/chains/${CHAIN_ID}/applications/${APP_ID}`;
+}
+
+/**
+ * Execute a GraphQL mutation on the application
+ * This sends the mutation to the application's GraphQL endpoint
+ */
+export async function executeApplicationMutation(mutation: string, variables?: Record<string, any>): Promise<any> {
   if (!USE_LINERA) {
     throw new Error('Linera integration is not enabled. Set VITE_USE_LINERA=true');
   }
 
-  const mutation = `
-    mutation($chainId: ID!, $operation: String!) {
-      executeOperation(
-        chainId: $chainId
-        operation: $operation
-      )
-    }
-  `;
+  const endpoint = getApplicationEndpoint();
+  console.log('🔗 Executing mutation on:', endpoint);
 
   try {
-    const result = await Linera.graphqlRequest(mutation, {
-      chainId: CHAIN_ID,
-      operation: JSON.stringify(operation),
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ query: mutation, variables }),
     });
-    console.log('✅ Operation executed on chain:', result);
-    return result;
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const result = await response.json();
+
+    if (result.errors && result.errors.length > 0) {
+      throw new Error(`GraphQL errors: ${JSON.stringify(result.errors)}`);
+    }
+
+    console.log('✅ Mutation executed:', result);
+    return result.data;
   } catch (error) {
-    console.error('❌ Failed to execute operation:', error);
+    console.error('❌ Failed to execute mutation:', error);
     throw error;
   }
 }
 
 /**
  * Register as an agent on the blockchain
+ * Uses the application's GraphQL mutation
  */
 export async function registerAgentOnChain(name: string, serviceDescription: string): Promise<any> {
-  const operation = {
-    RegisterAgent: {
-      name,
-      service_description: serviceDescription,
-    },
-  };
-  return executeOperation(operation);
+  const mutation = `
+    mutation RegisterAgent($name: String!, $serviceDescription: String!) {
+      registerAgent(name: $name, serviceDescription: $serviceDescription)
+    }
+  `;
+  return executeApplicationMutation(mutation, { name, serviceDescription });
 }
 
 /**
  * Post a job on the blockchain
+ * Uses the application's GraphQL mutation
  */
 export async function postJobOnChain(description: string, payment: number): Promise<any> {
-  const operation = {
-    PostJob: {
-      description,
-      payment: payment.toString(),
-    },
-  };
-  return executeOperation(operation);
+  const mutation = `
+    mutation PostJob($description: String!, $payment: String!) {
+      postJob(description: $description, payment: $payment)
+    }
+  `;
+  return executeApplicationMutation(mutation, { 
+    description, 
+    payment: payment.toString() 
+  });
 }
 
 /**
  * Place a bid on a job
+ * Uses the application's GraphQL mutation
  */
 export async function placeBidOnChain(jobId: number): Promise<any> {
-  const operation = {
-    PlaceBid: {
-      job_id: jobId,
-    },
-  };
-  return executeOperation(operation);
+  const mutation = `
+    mutation PlaceBid($jobId: Int!) {
+      placeBid(jobId: $jobId)
+    }
+  `;
+  return executeApplicationMutation(mutation, { jobId });
 }
 
 /**
  * Accept a bid (client accepts an agent's bid)
+ * Uses the application's GraphQL mutation
  */
 export async function acceptBidOnChain(jobId: number, agent: Owner): Promise<any> {
-  const operation = {
-    AcceptBid: {
-      job_id: jobId,
-      agent,
-    },
-  };
-  return executeOperation(operation);
+  const mutation = `
+    mutation AcceptBid($jobId: Int!, $agent: String!) {
+      acceptBid(jobId: $jobId, agent: $agent)
+    }
+  `;
+  return executeApplicationMutation(mutation, { jobId, agent });
 }
 
 /**
  * Complete a job
+ * Uses the application's GraphQL mutation
  */
 export async function completeJobOnChain(jobId: number): Promise<any> {
-  const operation = {
-    CompleteJob: {
-      job_id: jobId,
-    },
-  };
-  return executeOperation(operation);
+  const mutation = `
+    mutation CompleteJob($jobId: Int!) {
+      completeJob(jobId: $jobId)
+    }
+  `;
+  return executeApplicationMutation(mutation, { jobId });
 }
 
 /**
@@ -225,4 +248,136 @@ export function getLineraConfig() {
     appId: APP_ID,
     graphqlUrl: import.meta.env.VITE_LINERA_GRAPHQL_URL,
   };
+}
+
+/**
+ * Execute a GraphQL query on the application
+ * This sends the query to the application's GraphQL endpoint
+ */
+export async function executeApplicationQuery(query: string, variables?: Record<string, any>): Promise<any> {
+  if (!USE_LINERA) {
+    throw new Error('Linera integration is not enabled. Set VITE_USE_LINERA=true');
+  }
+
+  const endpoint = getApplicationEndpoint();
+  console.log('🔍 Executing query on:', endpoint);
+
+  try {
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ query, variables }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const result = await response.json();
+
+    if (result.errors && result.errors.length > 0) {
+      console.error('GraphQL errors:', result.errors);
+      throw new Error(`GraphQL errors: ${JSON.stringify(result.errors)}`);
+    }
+
+    console.log('✅ Query result:', result);
+    return result.data;
+  } catch (error) {
+    console.error('❌ Failed to execute query:', error);
+    throw error;
+  }
+}
+
+/**
+ * Fetch all jobs from the blockchain
+ */
+export async function getJobsFromChain(): Promise<Job[]> {
+  const query = `
+    query GetJobs {
+      jobs {
+        id
+        client
+        description
+        payment
+        status
+        agent
+        bids {
+          agent
+          bidId
+          timestamp
+        }
+        createdAt
+      }
+    }
+  `;
+  
+  try {
+    const data = await executeApplicationQuery(query);
+    return data.jobs || [];
+  } catch (error) {
+    console.error('Failed to fetch jobs from chain:', error);
+    return [];
+  }
+}
+
+/**
+ * Fetch all agents from the blockchain
+ */
+export async function getAgentsFromChain(): Promise<AgentProfile[]> {
+  const query = `
+    query GetAgents {
+      agents {
+        owner
+        name
+        serviceDescription
+        jobsCompleted
+        totalRatingPoints
+      }
+    }
+  `;
+  
+  try {
+    const data = await executeApplicationQuery(query);
+    return (data.agents || []).map((agent: any) => ({
+      ...agent,
+      rating: agent.jobsCompleted > 0 ? agent.totalRatingPoints / agent.jobsCompleted : 0,
+    }));
+  } catch (error) {
+    console.error('Failed to fetch agents from chain:', error);
+    return [];
+  }
+}
+
+/**
+ * Fetch a specific job from the blockchain
+ */
+export async function getJobFromChain(id: number): Promise<Job | undefined> {
+  const query = `
+    query GetJob($id: Int!) {
+      job(id: $id) {
+        id
+        client
+        description
+        payment
+        status
+        agent
+        bids {
+          agent
+          bidId
+          timestamp
+        }
+        createdAt
+      }
+    }
+  `;
+  
+  try {
+    const data = await executeApplicationQuery(query, { id });
+    return data.job || undefined;
+  } catch (error) {
+    console.error('Failed to fetch job from chain:', error);
+    return undefined;
+  }
 }

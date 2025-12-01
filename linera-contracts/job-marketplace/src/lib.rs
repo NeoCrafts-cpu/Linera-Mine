@@ -10,6 +10,7 @@ A decentralized job marketplace on Linera where users can:
 
 use async_graphql::{Enum, Request, Response, SimpleObject};
 use linera_sdk::{
+    graphql::GraphQLMutationRoot,
     linera_base_types::{AccountOwner, Amount, Timestamp},
     views::{linera_views, MapView, RegisterView, RootView, ViewStorageContext},
 };
@@ -94,7 +95,7 @@ pub struct AgentProfile {
 }
 
 /// Operations that can be performed
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, GraphQLMutationRoot)]
 pub enum Operation {
     /// Post a new job
     PostJob {
@@ -159,69 +160,6 @@ pub enum JobMarketplaceError {
     
     #[error("Insufficient funds")]
     InsufficientFunds,
-}
-
-/// GraphQL service interface
-pub struct JobMarketplaceService {
-    state: JobMarketplace,
-}
-
-impl JobMarketplaceService {
-    pub fn new(state: JobMarketplace) -> Self {
-        Self { state }
-    }
-    
-    pub async fn handle_query(self, request: Request) -> Response {
-        let schema = async_graphql::Schema::build(
-            QueryRoot { state: self.state },
-            MutationRoot,
-            async_graphql::EmptySubscription,
-        )
-        .finish();
-        
-        schema.execute(request).await
-    }
-}
-
-struct QueryRoot {
-    state: JobMarketplace,
-}
-
-#[async_graphql::Object]
-impl QueryRoot {
-    /// Get all jobs
-    async fn jobs(&self) -> Vec<Job> {
-        // Implementation will query the MapView
-        vec![]
-    }
-    
-    /// Get a specific job by ID
-    async fn job(&self, _id: u64) -> Option<Job> {
-        // Implementation will query the MapView
-        None
-    }
-    
-    /// Get all agents
-    async fn agents(&self) -> Vec<AgentProfile> {
-        // Implementation will query the MapView
-        vec![]
-    }
-    
-    /// Get agent profile
-    async fn agent(&self, _owner: String) -> Option<AgentProfile> {
-        // Implementation will query the MapView
-        None
-    }
-}
-
-struct MutationRoot;
-
-#[async_graphql::Object]
-impl MutationRoot {
-    /// Placeholder for mutations (handled by operations)
-    async fn placeholder(&self) -> bool {
-        true
-    }
 }
 
 /// Application ABI
