@@ -18,24 +18,145 @@
             },
             colors: {
               'mc-dirt': '#8A593A',
-              'mc-stone': '#808080',
-              'mc-grass': '#5A8E22',
-              'mc-wood': '#6B4226',
-              'mc-diamond': '#3ECAC4',
-              'mc-emerald': '#17A24A',
-              'mc-gold': '#F8D523',
+              'mc-dirt-dark': '#5C3A26',
+              'mc-stone': '#7F7F7F',
+              'mc-stone-dark': '#4A4A4A',
+              'mc-grass': '#5D9B2C',
+              'mc-grass-dark': '#3D6B1C',
+              'mc-wood': '#9C6D3E',
+              'mc-wood-dark': '#6B4226',
+              'mc-diamond': '#4AEDD9',
+              'mc-diamond-dark': '#21A0A0',
+              'mc-emerald': '#17DD62',
+              'mc-emerald-dark': '#0A8A3A',
+              'mc-gold': '#FCEE4B',
+              'mc-gold-dark': '#DBA213',
+              'mc-redstone': '#FF3333',
+              'mc-lapis': '#345EC3',
+              'mc-obsidian': '#1B1B2F',
+              'mc-netherite': '#4A4144',
+              'mc-amethyst': '#9B59D0',
+              'mc-copper': '#B87333',
               'mc-text-light': '#FFFFFF',
               'mc-text-dark': '#AAAAAA',
-              'mc-text-shadow': '#373737',
+              'mc-text-shadow': '#3F3F3F',
               'mc-ui-bg': '#C6C6C6',
-              'mc-ui-bg-dark': '#373737',
-              'mc-ui-border-light': '#FFFFFF',
-              'mc-ui-border-dark': '#555555',
+              'mc-ui-bg-dark': '#2D2D2D',
+              'mc-ui-border-light': '#FEFEFE',
+              'mc-ui-border-dark': '#373737',
+              'mc-inventory': '#8B8B8B',
+            },
+            boxShadow: {
+              'mc': '4px 4px 0px #373737',
+              'mc-inset': 'inset 2px 2px 0px #555555, inset -2px -2px 0px #FFFFFF',
+              'mc-hover': '2px 2px 0px #373737',
+            },
+            animation: {
+              'float': 'float 3s ease-in-out infinite',
+              'pulse-slow': 'pulse 3s ease-in-out infinite',
+              'shimmer': 'shimmer 2s linear infinite',
+            },
+            keyframes: {
+              float: {
+                '0%, 100%': { transform: 'translateY(0px)' },
+                '50%': { transform: 'translateY(-10px)' },
+              },
+              shimmer: {
+                '0%': { backgroundPosition: '-200% 0' },
+                '100%': { backgroundPosition: '200% 0' },
+              }
             }
           }
         }
       }
     </script>
+    <style>
+      /* Custom Minecraft-style scrollbar */
+      ::-webkit-scrollbar {
+        width: 12px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #2D2D2D;
+        border: 2px solid #373737;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #8B8B8B;
+        border: 2px solid #555555;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #AAAAAA;
+      }
+      
+      /* Pixelated rendering for images */
+      .pixelated {
+        image-rendering: pixelated;
+        image-rendering: crisp-edges;
+      }
+      
+      /* MC Button hover effect */
+      .mc-btn {
+        transition: all 0.1s ease;
+        position: relative;
+      }
+      .mc-btn:hover {
+        transform: translateY(-2px);
+      }
+      .mc-btn:active {
+        transform: translateY(1px);
+      }
+      
+      /* Glowing effect for special elements */
+      .mc-glow {
+        animation: glow 2s ease-in-out infinite alternate;
+      }
+      @keyframes glow {
+        from { box-shadow: 0 0 5px currentColor, 0 0 10px currentColor; }
+        to { box-shadow: 0 0 10px currentColor, 0 0 20px currentColor; }
+      }
+      
+      /* Slow spin animation for spinner */
+      .animate-spin-slow {
+        animation: spin 2s linear infinite;
+      }
+      
+      /* Pixel art styling */
+      .pixel-art {
+        image-rendering: pixelated;
+        image-rendering: crisp-edges;
+      }
+      
+      /* Pixel border effect */
+      .pixel-border {
+        box-shadow: 
+          inset -4px -4px 0px #373737, 
+          inset 4px 4px 0px rgba(255,255,255,0.2);
+      }
+      
+      /* Gradient text effect */
+      .gradient-text {
+        background: linear-gradient(90deg, #4AEDD9, #17DD62, #4AEDD9);
+        background-size: 200% auto;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        animation: shimmer 3s linear infinite;
+      }
+      
+      /* Card hover glow */
+      .card-glow:hover {
+        box-shadow: 0 0 20px rgba(74, 237, 217, 0.3);
+      }
+      
+      /* Minecraft amethyst purple for special elements */
+      .mc-amethyst {
+        color: #9B59D0;
+      }
+      .bg-mc-amethyst {
+        background-color: #9B59D0;
+      }
+      .border-mc-amethyst {
+        border-color: #9B59D0;
+      }
+    </style>
   <script type="importmap">
 {
   "imports": {
@@ -47,7 +168,7 @@
 </script>
 <link rel="stylesheet" href="/index.css">
 </head>
-  <body class="bg-mc-dirt text-mc-text-light" style="background-image: url('https://www.transparenttextures.com/patterns/cubes.png');">
+  <body class="bg-mc-obsidian text-mc-text-light" style="background-image: url('https://www.transparenttextures.com/patterns/dark-mosaic.png');">
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
   </body>

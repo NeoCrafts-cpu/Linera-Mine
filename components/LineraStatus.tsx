@@ -42,21 +42,21 @@ const LineraStatus: React.FC = () => {
     };
 
     checkConnection();
-    // Check connection every 10 seconds
     const interval = setInterval(checkConnection, 10000);
     return () => clearInterval(interval);
   }, [useLinera, chainId]);
 
   if (!useLinera) {
     return (
-      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
-        <div className="flex items-center">
-          <svg className="w-5 h-5 text-yellow-600 mr-2" fill="currentColor" viewBox="0 0 20 20">
-            <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-          </svg>
-          <span className="text-sm font-medium text-yellow-800">
-            Mock Mode - Using test data (Set VITE_USE_LINERA=true to enable blockchain)
-          </span>
+      <div className="bg-mc-gold/10 border-2 border-mc-gold p-3 mb-4">
+        <div className="flex items-center gap-3">
+          <div className="text-xl">⚠️</div>
+          <div>
+            <div className="text-mc-gold text-[10px] uppercase font-bold">Mock Mode Active</div>
+            <div className="text-mc-text-dark text-[9px]">
+              Using test data • Set VITE_USE_LINERA=true to enable blockchain
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -64,10 +64,15 @@ const LineraStatus: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4 animate-pulse">
-        <div className="flex items-center">
-          <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mr-2"></div>
-          <span className="text-sm text-blue-800">Connecting to Linera blockchain...</span>
+      <div className="bg-mc-diamond/10 border-2 border-mc-diamond p-3 mb-4">
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <div className="w-5 h-5 border-2 border-mc-diamond border-t-transparent rounded-full animate-spin"></div>
+          </div>
+          <div>
+            <div className="text-mc-diamond text-[10px] uppercase font-bold animate-pulse">Connecting...</div>
+            <div className="text-mc-text-dark text-[9px]">Establishing connection to Linera blockchain</div>
+          </div>
         </div>
       </div>
     );
@@ -75,15 +80,19 @@ const LineraStatus: React.FC = () => {
 
   if (error) {
     return (
-      <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
-        <div className="flex items-center">
-          <svg className="w-5 h-5 text-red-600 mr-2" fill="currentColor" viewBox="0 0 20 20">
-            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-          </svg>
+      <div className="bg-mc-redstone/10 border-2 border-mc-redstone p-3 mb-4">
+        <div className="flex items-center gap-3">
+          <div className="text-xl">❌</div>
           <div className="flex-1">
-            <span className="text-sm font-medium text-red-800 block">Linera Connection Error</span>
-            <span className="text-xs text-red-600">{error}</span>
+            <div className="text-mc-redstone text-[10px] uppercase font-bold">Connection Failed</div>
+            <div className="text-mc-text-dark text-[9px]">{error}</div>
           </div>
+          <button 
+            onClick={() => window.location.reload()}
+            className="text-mc-redstone text-[9px] hover:underline"
+          >
+            Retry
+          </button>
         </div>
       </div>
     );
@@ -91,29 +100,26 @@ const LineraStatus: React.FC = () => {
 
   if (chainInfo?.connected) {
     return (
-      <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
-        <div className="flex items-start">
-          <svg className="w-5 h-5 text-green-600 mr-2 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-          </svg>
+      <div className="bg-mc-emerald/10 border-2 border-mc-emerald p-3 mb-4">
+        <div className="flex items-start gap-3">
+          <div className="text-xl">⛓️</div>
           <div className="flex-1">
-            <div className="text-sm font-medium text-green-800 mb-1">Connected to Linera Blockchain</div>
-            <div className="text-xs text-green-700 space-y-1">
-              <div className="flex items-center">
-                <span className="font-semibold mr-2">Chain:</span>
-                <code className="bg-green-100 px-2 py-0.5 rounded font-mono text-[10px]">
-                  {chainInfo.chainId.substring(0, 16)}...
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-mc-emerald text-[10px] uppercase font-bold">Connected to Linera</span>
+              <span className="inline-block w-2 h-2 bg-mc-emerald rounded-full animate-pulse"></span>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              <div className="bg-mc-ui-bg-dark/50 p-2 border border-mc-stone">
+                <div className="text-mc-text-dark text-[8px] uppercase mb-1">Chain ID</div>
+                <code className="text-mc-diamond text-[9px] font-mono block truncate">
+                  {chainInfo.chainId.substring(0, 20)}...
                 </code>
               </div>
-              <div className="flex items-center">
-                <span className="font-semibold mr-2">App:</span>
-                <code className="bg-green-100 px-2 py-0.5 rounded font-mono text-[10px]">
-                  {appId?.substring(0, 16)}...
+              <div className="bg-mc-ui-bg-dark/50 p-2 border border-mc-stone">
+                <div className="text-mc-text-dark text-[8px] uppercase mb-1">Application</div>
+                <code className="text-mc-amethyst text-[9px] font-mono block truncate">
+                  {appId?.substring(0, 20)}...
                 </code>
-              </div>
-              <div className="flex items-center">
-                <span className="inline-block w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></span>
-                <span>Real-time blockchain data</span>
               </div>
             </div>
           </div>

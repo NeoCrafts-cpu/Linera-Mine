@@ -1,5 +1,5 @@
 
-import { AgentProfile, Job, JobStatus, Owner, Bid } from '../types';
+import { AgentProfile, Job, JobStatus, Owner, Bid, JobFilter, AgentFilter, JobSortField, AgentSortField, SortDirection, MarketplaceStats, WalletAuth, AgentRating } from '../types';
 import * as Linera from './linera';
 
 // Toggle between mock data and Linera blockchain
@@ -14,6 +14,83 @@ console.log('🔗 Linera Integration:', {
   appId: APP_ID ? `${APP_ID.substring(0, 16)}...` : 'Not set',
 });
 
+// Wallet authentication state
+let currentWalletAuth: WalletAuth | null = null;
+
+// ==================== WALLET AUTHENTICATION ====================
+
+/**
+ * Connect to Linera wallet and authenticate
+ */
+export async function connectWallet(): Promise<WalletAuth> {
+  if (!USE_LINERA) {
+    // Mock authentication for development
+    const mockAuth: WalletAuth = {
+      address: ('0x' + 'a'.repeat(64)) as Owner,
+      chainId: 'mock-chain',
+      isAuthenticated: true,
+    };
+    currentWalletAuth = mockAuth;
+    return mockAuth;
+  }
+
+  try {
+    const isAvailable = await Linera.checkLineraConnection();
+    if (!isAvailable) {
+      throw new Error('Linera service not available');
+    }
+
+    const address = await Linera.getLineraWalletAddress();
+    const chainId = Linera.getChainId();
+
+    if (!address || !chainId) {
+      throw new Error('Failed to get wallet address or chain ID');
+    }
+
+    const auth: WalletAuth = {
+      address: address as Owner,
+      chainId,
+      isAuthenticated: true,
+    };
+
+    currentWalletAuth = auth;
+    console.log('✅ Wallet connected:', auth.address.substring(0, 16) + '...');
+    return auth;
+  } catch (error) {
+    console.error('❌ Wallet connection failed:', error);
+    throw error;
+  }
+}
+
+/**
+ * Disconnect wallet
+ */
+export function disconnectWallet(): void {
+  currentWalletAuth = null;
+  console.log('🔌 Wallet disconnected');
+}
+
+/**
+ * Get current wallet authentication state
+ */
+export function getWalletAuth(): WalletAuth | null {
+  return currentWalletAuth;
+}
+
+/**
+ * Check if user is authenticated
+ */
+export function isAuthenticated(): boolean {
+  return currentWalletAuth?.isAuthenticated ?? false;
+}
+
+/**
+ * Get current user's address
+ */
+export function getCurrentUserAddress(): Owner | null {
+  return currentWalletAuth?.address ?? null;
+}
+
 // MOCK DATA - This would be fetched from the Linera blockchain via GraphQL
 const MOCK_OWNERS: Owner[] = [
   '0x' + 'a'.repeat(64) as Owner,
@@ -25,10 +102,10 @@ const MOCK_OWNERS: Owner[] = [
 ];
 
 let MOCK_AGENTS: AgentProfile[] = [
-  { owner: MOCK_OWNERS[1], name: 'CodeBot 5000', serviceDescription: 'Expert in Rust smart contract auditing.', jobsCompleted: 42, totalRatingPoints: 205, rating: 4.9 },
-  { owner: MOCK_OWNERS[2], name: 'Artisan AI', serviceDescription: 'Generates stunning digital art from prompts.', jobsCompleted: 120, totalRatingPoints: 588, rating: 4.9 },
-  { owner: MOCK_OWNERS[3], name: 'DataCruncher', serviceDescription: 'Provides deep data analysis and market insights.', jobsCompleted: 75, totalRatingPoints: 360, rating: 4.8 },
-  { owner: MOCK_OWNERS[4], name: 'TranslateSphere', serviceDescription: 'Fast and accurate multilingual translation services.', jobsCompleted: 210, totalRatingPoints: 1000, rating: 4.7 },
+  { owner: MOCK_OWNERS[1], name: 'CodeBot 5000', serviceDescription: 'Expert in Rust smart contract auditing.', jobsCompleted: 42, totalRatingPoints: 205, totalRatings: 42, rating: 4.9, verified: true },
+  { owner: MOCK_OWNERS[2], name: 'Artisan AI', serviceDescription: 'Generates stunning digital art from prompts.', jobsCompleted: 120, totalRatingPoints: 588, totalRatings: 120, rating: 4.9, verified: true },
+  { owner: MOCK_OWNERS[3], name: 'DataCruncher', serviceDescription: 'Provides deep data analysis and market insights.', jobsCompleted: 75, totalRatingPoints: 360, totalRatings: 75, rating: 4.8, verified: false },
+  { owner: MOCK_OWNERS[4], name: 'TranslateSphere', serviceDescription: 'Fast and accurate multilingual translation services.', jobsCompleted: 210, totalRatingPoints: 1000, totalRatings: 210, rating: 4.7, verified: true },
 ];
 
 let MOCK_JOBS: Job[] = [
@@ -381,3 +458,417 @@ export async function getJobFromChain(id: number): Promise<Job | undefined> {
     return undefined;
   }
 }
+
+/**
+ * Fetch jobs with filtering, sorting, and pagination
+ */
+export async function getJobsFiltered(
+  filter?: JobFilter,
+  sortBy?: JobSortField,
+  sortDir?: SortDirection,
+  limit?: number,
+  offset?: number
+): Promise<Job[]> {
+  if (!USE_LINERA) {
+    // Apply filters to mock data
+    let jobs = [...MOCK_JOBS];
+    
+    if (filter?.status) {
+      jobs = jobs.filter(j => j.status === filter.status);
+    }
+    if (filter?.minPayment) {
+      jobs = jobs.filter(j => j.payment >= filter.minPayment!);
+    }
+    if (filter?.maxPayment) {
+      jobs = jobs.filter(j => j.payment <= filter.maxPayment!);
+    }
+    
+    // Sort
+    if (sortBy === 'Payment') {
+      jobs.sort((a, b) => sortDir === 'Desc' ? b.payment - a.payment : a.payment - b.payment);
+    } else if (sortBy === 'Id') {
+      jobs.sort((a, b) => sortDir === 'Desc' ? b.id - a.id : a.id - b.id);
+    }
+    
+    // Pagination
+    const start = offset || 0;
+    const end = limit ? start + limit : undefined;
+    
+    return simulateApiCall(jobs.slice(start, end));
+  }
+
+  const query = `
+    query GetJobsFiltered(
+      $filter: JobFilter,
+      $sortBy: JobSortField,
+      $sortDir: SortDirection,
+      $limit: Int,
+      $offset: Int
+    ) {
+      jobs(
+        filter: $filter,
+        sortBy: $sortBy,
+        sortDir: $sortDir,
+        limit: $limit,
+        offset: $offset
+      ) {
+        id
+        client
+        description
+        payment
+        status
+        agent
+        bids {
+          agent
+          bidId
+          timestamp
+        }
+        createdAt
+      }
+    }
+  `;
+  
+  try {
+    const variables: any = {};
+    if (filter) {
+      variables.filter = {
+        status: filter.status,
+        minPayment: filter.minPayment?.toString(),
+        maxPayment: filter.maxPayment?.toString(),
+        client: filter.client,
+      };
+    }
+    if (sortBy) variables.sortBy = sortBy;
+    if (sortDir) variables.sortDir = sortDir;
+    if (limit) variables.limit = limit;
+    if (offset) variables.offset = offset;
+    
+    const data = await executeApplicationQuery(query, variables);
+    return data.jobs || [];
+  } catch (error) {
+    console.error('Failed to fetch filtered jobs:', error);
+    return [];
+  }
+}
+
+/**
+ * Fetch agents with filtering, sorting, and pagination
+ */
+export async function getAgentsFiltered(
+  filter?: AgentFilter,
+  sortBy?: AgentSortField,
+  sortDir?: SortDirection,
+  limit?: number,
+  offset?: number
+): Promise<AgentProfile[]> {
+  if (!USE_LINERA) {
+    let agents = [...MOCK_AGENTS];
+    
+    if (filter?.minJobsCompleted) {
+      agents = agents.filter(a => a.jobsCompleted >= filter.minJobsCompleted!);
+    }
+    if (filter?.minRating) {
+      agents = agents.filter(a => a.rating >= filter.minRating!);
+    }
+    
+    if (sortBy === 'JobsCompleted') {
+      agents.sort((a, b) => sortDir === 'Desc' ? b.jobsCompleted - a.jobsCompleted : a.jobsCompleted - b.jobsCompleted);
+    } else if (sortBy === 'Rating') {
+      agents.sort((a, b) => sortDir === 'Desc' ? b.rating - a.rating : a.rating - b.rating);
+    }
+    
+    const start = offset || 0;
+    const end = limit ? start + limit : undefined;
+    
+    return simulateApiCall(agents.slice(start, end));
+  }
+
+  const query = `
+    query GetAgentsFiltered(
+      $filter: AgentFilter,
+      $sortBy: AgentSortField,
+      $sortDir: SortDirection,
+      $limit: Int,
+      $offset: Int
+    ) {
+      agents(
+        filter: $filter,
+        sortBy: $sortBy,
+        sortDir: $sortDir,
+        limit: $limit,
+        offset: $offset
+      ) {
+        owner
+        name
+        serviceDescription
+        jobsCompleted
+        totalRatingPoints
+        totalRatings
+        registeredAt
+      }
+    }
+  `;
+  
+  try {
+    const variables: any = {};
+    if (filter) {
+      variables.filter = {
+        minJobsCompleted: filter.minJobsCompleted,
+        minRating: filter.minRating,
+      };
+    }
+    if (sortBy) variables.sortBy = sortBy;
+    if (sortDir) variables.sortDir = sortDir;
+    if (limit) variables.limit = limit;
+    if (offset) variables.offset = offset;
+    
+    const data = await executeApplicationQuery(query, variables);
+    return (data.agents || []).map((agent: any) => ({
+      ...agent,
+      rating: agent.totalRatings > 0 ? agent.totalRatingPoints / agent.totalRatings : 0,
+    }));
+  } catch (error) {
+    console.error('Failed to fetch filtered agents:', error);
+    return [];
+  }
+}
+
+/**
+ * Get marketplace statistics
+ */
+export async function getMarketplaceStats(): Promise<MarketplaceStats> {
+  if (!USE_LINERA) {
+    return simulateApiCall({
+      totalJobs: MOCK_JOBS.length,
+      postedJobs: MOCK_JOBS.filter(j => j.status === JobStatus.Posted).length,
+      inProgressJobs: MOCK_JOBS.filter(j => j.status === JobStatus.InProgress).length,
+      completedJobs: MOCK_JOBS.filter(j => j.status === JobStatus.Completed).length,
+      totalAgents: MOCK_AGENTS.length,
+      totalPaymentVolume: MOCK_JOBS.reduce((sum, j) => sum + j.payment, 0).toString(),
+    });
+  }
+
+  const query = `
+    query GetStats {
+      stats {
+        totalJobs
+        postedJobs
+        inProgressJobs
+        completedJobs
+        totalAgents
+        totalPaymentVolume
+      }
+    }
+  `;
+  
+  try {
+    const data = await executeApplicationQuery(query);
+    return data.stats;
+  } catch (error) {
+    console.error('Failed to fetch stats:', error);
+    return {
+      totalJobs: 0,
+      postedJobs: 0,
+      inProgressJobs: 0,
+      completedJobs: 0,
+      totalAgents: 0,
+      totalPaymentVolume: '0',
+    };
+  }
+}
+
+/**
+ * Rate an agent after job completion
+ */
+export async function rateAgentOnChain(jobId: number, rating: number, review: string): Promise<any> {
+  const mutation = `
+    mutation RateAgent($jobId: Int!, $rating: Int!, $review: String!) {
+      rateAgent(jobId: $jobId, rating: $rating, review: $review)
+    }
+  `;
+  return executeApplicationMutation(mutation, { jobId, rating, review });
+}
+
+/**
+ * Update agent profile
+ */
+export async function updateAgentProfileOnChain(name?: string, serviceDescription?: string): Promise<any> {
+  const mutation = `
+    mutation UpdateAgentProfile($name: String, $serviceDescription: String) {
+      updateAgentProfile(name: $name, serviceDescription: $serviceDescription)
+    }
+  `;
+  return executeApplicationMutation(mutation, { name, serviceDescription });
+}
+
+/**
+ * Get agent ratings/reviews
+ */
+export async function getAgentRatings(agentOwner: Owner): Promise<AgentRating[]> {
+  if (!USE_LINERA) {
+    return simulateApiCall([]);
+  }
+
+  const query = `
+    query GetAgentRatings($agentOwner: String!) {
+      agentRatings(agentOwner: $agentOwner) {
+        jobId
+        rater
+        rating
+        review
+        timestamp
+      }
+    }
+  `;
+  
+  try {
+    const data = await executeApplicationQuery(query, { agentOwner });
+    return data.agentRatings || [];
+  } catch (error) {
+    console.error('Failed to fetch agent ratings:', error);
+    return [];
+  }
+}
+
+// ==================== REAL-TIME SUBSCRIPTIONS ====================
+
+type SubscriptionCallback<T> = (data: T) => void;
+
+interface Subscription {
+  unsubscribe: () => void;
+}
+
+/**
+ * Subscribe to job updates (polling-based for now)
+ * In a full implementation, this would use WebSocket subscriptions
+ */
+export function subscribeToJobs(
+  callback: SubscriptionCallback<Job[]>,
+  pollInterval: number = 5000
+): Subscription {
+  let isActive = true;
+  
+  const poll = async () => {
+    if (!isActive) return;
+    
+    try {
+      const jobs = USE_LINERA ? await getJobsFromChain() : MOCK_JOBS;
+      callback(jobs);
+    } catch (error) {
+      console.error('Job subscription error:', error);
+    }
+    
+    if (isActive) {
+      setTimeout(poll, pollInterval);
+    }
+  };
+  
+  poll();
+  
+  return {
+    unsubscribe: () => {
+      isActive = false;
+    }
+  };
+}
+
+/**
+ * Subscribe to a specific job's updates
+ */
+export function subscribeToJob(
+  jobId: number,
+  callback: SubscriptionCallback<Job | undefined>,
+  pollInterval: number = 3000
+): Subscription {
+  let isActive = true;
+  
+  const poll = async () => {
+    if (!isActive) return;
+    
+    try {
+      const job = USE_LINERA ? await getJobFromChain(jobId) : MOCK_JOBS.find(j => j.id === jobId);
+      callback(job);
+    } catch (error) {
+      console.error('Job subscription error:', error);
+    }
+    
+    if (isActive) {
+      setTimeout(poll, pollInterval);
+    }
+  };
+  
+  poll();
+  
+  return {
+    unsubscribe: () => {
+      isActive = false;
+    }
+  };
+}
+
+/**
+ * Subscribe to agent updates
+ */
+export function subscribeToAgents(
+  callback: SubscriptionCallback<AgentProfile[]>,
+  pollInterval: number = 5000
+): Subscription {
+  let isActive = true;
+  
+  const poll = async () => {
+    if (!isActive) return;
+    
+    try {
+      const agents = USE_LINERA ? await getAgentsFromChain() : MOCK_AGENTS;
+      callback(agents);
+    } catch (error) {
+      console.error('Agent subscription error:', error);
+    }
+    
+    if (isActive) {
+      setTimeout(poll, pollInterval);
+    }
+  };
+  
+  poll();
+  
+  return {
+    unsubscribe: () => {
+      isActive = false;
+    }
+  };
+}
+
+/**
+ * Subscribe to marketplace stats
+ */
+export function subscribeToStats(
+  callback: SubscriptionCallback<MarketplaceStats>,
+  pollInterval: number = 10000
+): Subscription {
+  let isActive = true;
+  
+  const poll = async () => {
+    if (!isActive) return;
+    
+    try {
+      const stats = await getMarketplaceStats();
+      callback(stats);
+    } catch (error) {
+      console.error('Stats subscription error:', error);
+    }
+    
+    if (isActive) {
+      setTimeout(poll, pollInterval);
+    }
+  };
+  
+  poll();
+  
+  return {
+    unsubscribe: () => {
+      isActive = false;
+    }
+  };
+}
+

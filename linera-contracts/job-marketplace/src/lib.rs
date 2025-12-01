@@ -25,8 +25,12 @@ pub struct JobMarketplace {
     jobs: MapView<u64, Job>,
     /// Agent profiles
     agents: MapView<AccountOwner, AgentProfile>,
+    /// Agent ratings/reviews
+    ratings: MapView<u64, AgentRating>,
     /// Next job ID
     next_job_id: RegisterView<u64>,
+    /// Next rating ID
+    next_rating_id: RegisterView<u64>,
 }
 
 impl JobMarketplace {
@@ -46,12 +50,28 @@ impl JobMarketplace {
         &mut self.agents
     }
 
+    pub fn ratings(&self) -> &MapView<u64, AgentRating> {
+        &self.ratings
+    }
+
+    pub fn ratings_mut(&mut self) -> &mut MapView<u64, AgentRating> {
+        &mut self.ratings
+    }
+
     pub fn next_job_id(&self) -> &RegisterView<u64> {
         &self.next_job_id
     }
 
     pub fn next_job_id_mut(&mut self) -> &mut RegisterView<u64> {
         &mut self.next_job_id
+    }
+
+    pub fn next_rating_id(&self) -> &RegisterView<u64> {
+        &self.next_rating_id
+    }
+
+    pub fn next_rating_id_mut(&mut self) -> &mut RegisterView<u64> {
+        &mut self.next_rating_id
     }
 }
 
@@ -84,7 +104,7 @@ pub struct Bid {
     pub timestamp: Timestamp,
 }
 
-/// Agent profile
+/// Agent profile with reputation
 #[derive(Debug, Clone, Serialize, Deserialize, SimpleObject)]
 pub struct AgentProfile {
     pub owner: AccountOwner,
@@ -92,6 +112,18 @@ pub struct AgentProfile {
     pub service_description: String,
     pub jobs_completed: u64,
     pub total_rating_points: u64,
+    pub total_ratings: u64,
+    pub registered_at: Timestamp,
+}
+
+/// Agent rating/review
+#[derive(Debug, Clone, Serialize, Deserialize, SimpleObject)]
+pub struct AgentRating {
+    pub job_id: u64,
+    pub rater: AccountOwner,
+    pub rating: u8, // 1-5 stars
+    pub review: String,
+    pub timestamp: Timestamp,
 }
 
 /// Operations that can be performed
@@ -119,6 +151,17 @@ pub enum Operation {
     RegisterAgent {
         name: String,
         service_description: String,
+    },
+    /// Rate an agent after job completion (client only)
+    RateAgent {
+        job_id: u64,
+        rating: u8,
+        review: String,
+    },
+    /// Update agent profile
+    UpdateAgentProfile {
+        name: Option<String>,
+        service_description: Option<String>,
     },
 }
 
@@ -160,6 +203,15 @@ pub enum JobMarketplaceError {
     
     #[error("Insufficient funds")]
     InsufficientFunds,
+    
+    #[error("Invalid rating: must be 1-5")]
+    InvalidRating,
+    
+    #[error("Already rated this job")]
+    AlreadyRated,
+    
+    #[error("Agent already registered")]
+    AgentAlreadyRegistered,
 }
 
 /// Application ABI
