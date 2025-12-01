@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { getJobs, getJobsFromChain, isLineraEnabled } from '../services/api';
-import { Job, JobStatus } from '../types';
+import { getJobs, getJobsFromChain, getJobsFiltered, isLineraEnabled } from '../services/api';
+import { Job, JobStatus, JobFilter, JobSortField, SortDirection } from '../types';
 import { JobCard } from './JobCard';
 import { Spinner } from './Spinner';
 import { PostJobModal } from './PostJobModal';
+import { JobFilters } from './JobFilters';
 import LineraStatus from './LineraStatus';
 
 interface MarketplaceProps {
@@ -14,8 +15,10 @@ const Marketplace: React.FC<MarketplaceProps> = ({ onSelectJob }) => {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [filter, setFilter] = useState<JobStatus | 'All'>('All');
-  const [sortBy, setSortBy] = useState<'newest' | 'payment' | 'bids'>('newest');
+  const [filter, setFilter] = useState<JobFilter>({});
+  const [sortBy, setSortBy] = useState<JobSortField>('CreatedAt');
+  const [sortDir, setSortDir] = useState<SortDirection>('Desc');
+  const [quickFilter, setQuickFilter] = useState<JobStatus | 'All'>('All');
 
   const fetchJobs = useCallback(async () => {
     try {
@@ -23,7 +26,9 @@ const Marketplace: React.FC<MarketplaceProps> = ({ onSelectJob }) => {
       let jobData: Job[];
       
       if (isLineraEnabled()) {
-        jobData = await getJobsFromChain();
+        // Use filtered query for blockchain
+        const queryFilter = quickFilter !== 'All' ? { ...filter, status: quickFilter } : filter;
+        jobData = await getJobsFiltered(queryFilter, sortBy, sortDir);
       } else {
         jobData = await getJobs();
       }
@@ -34,7 +39,7 @@ const Marketplace: React.FC<MarketplaceProps> = ({ onSelectJob }) => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [filter, sortBy, sortDir, quickFilter]);
 
   useEffect(() => {
     fetchJobs();
@@ -45,17 +50,28 @@ const Marketplace: React.FC<MarketplaceProps> = ({ onSelectJob }) => {
     fetchJobs();
   }, [fetchJobs]);
 
-  // Apply filters and sorting
-  const filteredAndSortedJobs = jobs
-    .filter(job => filter === 'All' || job.status === filter)
+  // Apply filters and sorting (for mock data - blockchain uses server-side filtering)
+  const filteredAndSortedJobs = !isLineraEnabled() ? jobs
+    .filter(job => quickFilter === 'All' || job.status === quickFilter)
+    .filter(job => !filter.minPayment || job.payment >= filter.minPayment)
+    .filter(job => !filter.maxPayment || job.payment <= filter.maxPayment)
     .sort((a, b) => {
       switch (sortBy) {
-        case 'payment': return b.payment - a.payment;
-        case 'bids': return b.bids.length - a.bids.length;
-        case 'newest':
-        default: return b.id - a.id;
+        case 'Payment': return sortDir === 'Desc' ? b.payment - a.payment : a.payment - b.payment;
+        case 'Id': return sortDir === 'Desc' ? b.id - a.id : a.id - b.id;
+        case 'CreatedAt':
+        default: return sortDir === 'Desc' ? b.id - a.id : a.id - b.id;
       }
-    });
+    }) : jobs; // For Linera, jobs are already filtered/sorted server-side
+
+  const handleFilterChange = (newFilter: JobFilter) => {
+    setFilter(newFilter);
+  };
+
+  const handleSortChange = (newSortBy: JobSortField, newSortDir: SortDirection) => {
+    setSortBy(newSortBy);
+    setSortDir(newSortDir);
+  };
 
   const statusCounts = {
     all: jobs.length,
@@ -65,7 +81,7 @@ const Marketplace: React.FC<MarketplaceProps> = ({ onSelectJob }) => {
   };
 
   const FilterButton: React.FC<{ status: JobStatus | 'All'; count: number }> = ({ status, count }) => {
-    const isActive = filter === status;
+    const isActive = quickFilter === status;
     const colorClass = status === 'All' ? 'bg-mc-stone' :
       status === JobStatus.Posted ? 'bg-mc-gold' :
       status === JobStatus.InProgress ? 'bg-mc-diamond' :
@@ -73,7 +89,7 @@ const Marketplace: React.FC<MarketplaceProps> = ({ onSelectJob }) => {
     
     return (
       <button
-        onClick={() => setFilter(status)}
+        onClick={() => setQuickFilter(status)}
         className={`group relative px-4 py-2 text-[10px] uppercase tracking-wider transition-all duration-200 border-2 ${
           isActive 
             ? `${colorClass} text-white border-transparent shadow-lg transform scale-105` 
@@ -141,17 +157,33 @@ const Marketplace: React.FC<MarketplaceProps> = ({ onSelectJob }) => {
           <div className="flex items-center gap-2">
             <span className="text-mc-text-dark text-[9px] uppercase">Sort by:</span>
             <select 
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as 'newest' | 'payment' | 'bids')}
+              value={`${sortBy}-${sortDir}`}
+              onChange={(e) => {
+                const [field, dir] = e.target.value.split('-') as [JobSortField, SortDirection];
+                setSortBy(field);
+                setSortDir(dir);
+              }}
               className="bg-mc-stone text-mc-text-light text-[10px] px-3 py-2 border-2 border-mc-ui-border-dark focus:outline-none focus:border-mc-diamond cursor-pointer"
             >
-              <option value="newest">Newest First</option>
-              <option value="payment">Highest Payment</option>
-              <option value="bids">Most Bids</option>
+              <option value="CreatedAt-Desc">Newest First</option>
+              <option value="CreatedAt-Asc">Oldest First</option>
+              <option value="Payment-Desc">Highest Payment</option>
+              <option value="Payment-Asc">Lowest Payment</option>
+              <option value="Id-Desc">ID (High to Low)</option>
+              <option value="Id-Asc">ID (Low to High)</option>
             </select>
           </div>
         </div>
       </div>
+
+      {/* Advanced Filters */}
+      <JobFilters
+        onFilterChange={handleFilterChange}
+        onSortChange={handleSortChange}
+        currentFilter={filter}
+        currentSortBy={sortBy}
+        currentSortDir={sortDir}
+      />
 
       {/* Jobs Grid */}
       {loading ? (
@@ -187,13 +219,16 @@ const Marketplace: React.FC<MarketplaceProps> = ({ onSelectJob }) => {
                 <div className="text-4xl mb-4">🔍</div>
                 <p className="text-mc-text-light text-sm mb-2">No Jobs Found</p>
                 <p className="text-mc-text-dark text-[10px]">
-                  {filter === 'All' 
+                  {quickFilter === 'All' && !filter.minPayment && !filter.maxPayment
                     ? "Be the first to post a job on the marketplace!" 
-                    : `No jobs with status "${filter}" found.`}
+                    : `No jobs matching your filters.`}
                 </p>
-                {filter !== 'All' && (
+                {(quickFilter !== 'All' || filter.minPayment || filter.maxPayment) && (
                   <button 
-                    onClick={() => setFilter('All')}
+                    onClick={() => {
+                      setQuickFilter('All');
+                      setFilter({});
+                    }}
                     className="mt-4 text-mc-diamond text-[10px] hover:underline"
                   >
                     Clear filters

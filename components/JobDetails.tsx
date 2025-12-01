@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { getJobById, acceptJob, getAgents } from '../services/api';
-import { Job, Owner, AgentProfile } from '../types';
+import { getJobById, acceptJob, getAgents, isLineraEnabled, completeJobOnChain } from '../services/api';
+import { Job, Owner, AgentProfile, JobStatus } from '../types';
 import { AgentCard } from './AgentCard';
 import { Spinner } from './Spinner';
 import { JobStatusBadge } from './JobStatusBadge';
+import { RateAgentModal } from './RateAgentModal';
 
 interface JobDetailsProps {
   jobId: number;
@@ -40,6 +41,8 @@ const JobDetails: React.FC<JobDetailsProps> = ({ jobId, onBack }) => {
   const [agents, setAgents] = useState<AgentProfile[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [isAccepting, setIsAccepting] = useState<Owner | null>(null);
+  const [isCompleting, setIsCompleting] = useState<boolean>(false);
+  const [showRateModal, setShowRateModal] = useState<boolean>(false);
 
   const fetchJobDetails = useCallback(async () => {
     try {
@@ -75,6 +78,26 @@ const JobDetails: React.FC<JobDetailsProps> = ({ jobId, onBack }) => {
     } finally {
         setIsAccepting(null);
     }
+  };
+
+  const handleCompleteJob = async () => {
+    if (!job) return;
+    setIsCompleting(true);
+    try {
+      if (isLineraEnabled()) {
+        await completeJobOnChain(job.id);
+      }
+      await fetchJobDetails();
+    } catch (error) {
+      console.error("Failed to complete job:", error);
+    } finally {
+      setIsCompleting(false);
+    }
+  };
+
+  const handleRated = () => {
+    setShowRateModal(false);
+    fetchJobDetails();
   };
 
 
@@ -168,13 +191,51 @@ const JobDetails: React.FC<JobDetailsProps> = ({ jobId, onBack }) => {
 
           {/* Assigned Agent Section */}
           {job.agent && (
-            <div className="bg-mc-emerald/10 border-2 border-mc-emerald p-4 flex items-center gap-3">
-              <div className="text-2xl">✅</div>
-              <div>
-                <div className="text-mc-emerald text-[10px] uppercase font-bold">Assigned Agent</div>
-                <div className="text-mc-text-light text-xs">
-                  {job.agent.substring(0, 8)}...{job.agent.substring(job.agent.length - 6)}
+            <div className="bg-mc-emerald/10 border-2 border-mc-emerald p-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="text-2xl">✅</div>
+                <div>
+                  <div className="text-mc-emerald text-[10px] uppercase font-bold">Assigned Agent</div>
+                  <div className="text-mc-text-light text-xs">
+                    {job.agent.substring(0, 8)}...{job.agent.substring(job.agent.length - 6)}
+                  </div>
                 </div>
+              </div>
+              
+              {/* Action buttons based on status */}
+              <div className="flex gap-2">
+                {(job.status === 'InProgress' || job.status === 'IN_PROGRESS') && (
+                  <button
+                    onClick={handleCompleteJob}
+                    disabled={isCompleting}
+                    className="bg-mc-emerald text-white font-bold py-2 px-4 border-4 border-t-mc-ui-border-light border-l-mc-ui-border-light border-b-mc-emerald-dark border-r-mc-emerald-dark text-[10px] uppercase tracking-wider disabled:bg-mc-stone disabled:cursor-wait hover:brightness-110 transition-all flex items-center gap-2"
+                  >
+                    {isCompleting ? (
+                      <>
+                        <svg className="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Completing...
+                      </>
+                    ) : (
+                      <>
+                        <span>✓</span>
+                        Complete Job
+                      </>
+                    )}
+                  </button>
+                )}
+                
+                {(job.status === 'Completed' || job.status === 'COMPLETED') && (
+                  <button
+                    onClick={() => setShowRateModal(true)}
+                    className="bg-mc-gold text-mc-ui-bg-dark font-bold py-2 px-4 border-4 border-t-mc-ui-border-light border-l-mc-ui-border-light border-b-mc-gold/70 border-r-mc-gold/70 text-[10px] uppercase tracking-wider hover:brightness-110 transition-all flex items-center gap-2"
+                  >
+                    <span>⭐</span>
+                    Rate Agent
+                  </button>
+                )}
               </div>
             </div>
           )}
@@ -234,6 +295,16 @@ const JobDetails: React.FC<JobDetailsProps> = ({ jobId, onBack }) => {
           </div>
         )}
       </div>
+
+      {/* Rate Agent Modal */}
+      {showRateModal && assignedAgentProfile && (
+        <RateAgentModal
+          jobId={job.id}
+          agentName={assignedAgentProfile.name}
+          onClose={() => setShowRateModal(false)}
+          onRated={handleRated}
+        />
+      )}
     </div>
   );
 };
