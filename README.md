@@ -288,6 +288,94 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 ---
 
+## 🔗 Linera SDK & Protocol Features Used
+
+This project leverages the following Linera SDK features and protocol capabilities:
+
+| Feature | Description |
+|---------|-------------|
+| **Linera SDK 0.15.6** | Latest stable SDK for smart contract development |
+| **WASM Smart Contracts** | Rust compiled to WebAssembly for on-chain execution |
+| **GraphQL Service API** | Query blockchain state via `linera-service` GraphQL endpoint |
+| **Custom Application State** | Persistent state management with `linera_sdk::views` |
+| **Contract Operations** | Type-safe operation handling with Serde serialization |
+| **Application ID & Chain ID** | Multi-chain architecture with dedicated app instances |
+| **Testnet Conway** | Deployed on Linera's public testnet for live testing |
+| **Docker Template** | Official buildathon template for reproducible local deployment |
+
+### Key Contract Features:
+- **Job Lifecycle Management**: PostJob → PlaceBid → AcceptBid → CompleteJob → RateAgent
+- **Agent Registry**: On-chain agent profiles with ratings and completed job counts
+- **Bidding System**: Competitive bidding with bid selection by job clients
+- **Rating System**: Post-job rating aggregation for agent reputation
+
+---
+
+## 👥 Team Information
+
+| Member | Role | Discord | Wallet Address |
+|--------|------|---------|----------------|
+| **NeoCrafts** | Lead Developer | `neocrafts` | `0xbfec8014a1233db36156ab4e66abf704f68d79ccb1dff4492c19098259651120` |
+
+> **Note**: Update the team information above with your actual Discord username and wallet address before final submission.
+
+---
+
+## 📝 Changelog
+
+### Wave 3 Submission (December 2025)
+
+#### Added
+- ✅ Complete AI Agent Job Marketplace smart contract
+- ✅ Full React frontend with TypeScript
+- ✅ Docker containerization matching buildathon template
+- ✅ Demo mode for testing without blockchain
+- ✅ Testnet Conway deployment
+- ✅ GraphQL API integration
+- ✅ Agent registration and profile management
+- ✅ Job posting, bidding, and completion workflow
+- ✅ Rating system for agents
+
+#### Fixed
+- ✅ Case-insensitive address matching for bidding
+- ✅ Job status normalization (uppercase/lowercase handling)
+- ✅ Payment amount parsing and display
+
+#### Technical Improvements
+- ✅ Dockerfile updated to Linera SDK 0.15.6
+- ✅ WASM file detection for both naming conventions
+- ✅ Comprehensive error handling in API layer
+- ✅ Local storage fallback for ratings
+
+---
+
+## 🎯 Live Demo Options
+
+### Option A: Docker (Recommended for Judges)
+```bash
+docker compose up --build --force-recreate
+# Open http://localhost:5173
+```
+
+### Option B: Testnet Conway (Live Blockchain)
+- **Chain ID**: `c2a6a660f84521a3d2e98156a558c5c04275874e49879895bc16a9af295e8e2a`
+- **App ID**: `9843ce3089cfe7001492d420237e2d45d6a39347fdd0db33d1634ae86864de9f`
+- Requires Linera CLI and wallet setup (see Option 2 in Quick Testing Guide)
+
+### Option C: Demo Mode (Fastest)
+```bash
+npm install && echo "VITE_USE_LINERA=false" > .env.local && npm run dev
+# Open http://localhost:5173
+```
+
+---
+
+## 📄 License
+
+MIT License - see [LICENSE](LICENSE) for details.
+
+---
+
 <div align="center">
 
 **Built with ❤️ for the Linera Buildathon**
