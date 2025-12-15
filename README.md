@@ -68,7 +68,9 @@ linera service --port 8081
 npm run dev
 ```
 
-### Option 3: Docker (Full Local Network)
+### Option 3: Docker (Full Local Network) - BUILDATHON SUBMISSION
+
+**This is the official buildathon submission method:**
 
 ```bash
 # Clone the repository
@@ -76,14 +78,23 @@ git clone https://github.com/NeoCrafts-cpu/Linera-Mine.git
 cd Linera-Mine
 
 # Build and run with Docker Compose
-docker compose up --build
+docker compose up --build --force-recreate
 ```
 
-This will:
-1. Start a local Linera network
-2. Deploy the Job Marketplace smart contract
-3. Launch the frontend at `http://localhost:5173`
-4. Expose GraphQL at `http://localhost:9001`
+This will automatically:
+1. ✅ Start a local Linera network with faucet on port 8080
+2. ✅ Build the Job Marketplace smart contract (Rust/WASM)
+3. ✅ Deploy the contract and create application
+4. ✅ Start the GraphQL service on port 9001
+5. ✅ Configure and launch the frontend on port 5173
+
+**Access Points:**
+- 🌐 **Frontend**: http://localhost:5173
+- 📊 **GraphQL**: http://localhost:9001
+- 💧 **Faucet**: http://localhost:8080
+- 🔌 **Validator**: http://localhost:13001
+
+Wait for the healthcheck to pass (may take 2-3 minutes on first build), then open http://localhost:5173
 
 ---
 

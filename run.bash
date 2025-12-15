@@ -38,9 +38,17 @@ echo "🔨 Building Job Marketplace smart contract..."
 cd /build/linera-contracts/job-marketplace
 cargo build --release --target wasm32-unknown-unknown
 
-# Find the WASM files (they could be in different locations depending on workspace setup)
+# Find the WASM files (binaries are named with underscores)
 CONTRACT_WASM=$(find /build -name "job_marketplace_contract.wasm" -path "*/release/*" 2>/dev/null | head -1)
 SERVICE_WASM=$(find /build -name "job_marketplace_service.wasm" -path "*/release/*" 2>/dev/null | head -1)
+
+# Also check for hyphenated names (depending on Cargo config)
+if [ -z "$CONTRACT_WASM" ]; then
+    CONTRACT_WASM=$(find /build -name "job-marketplace-contract.wasm" -path "*/release/*" 2>/dev/null | head -1)
+fi
+if [ -z "$SERVICE_WASM" ]; then
+    SERVICE_WASM=$(find /build -name "job-marketplace-service.wasm" -path "*/release/*" 2>/dev/null | head -1)
+fi
 
 if [ -z "$CONTRACT_WASM" ] || [ -z "$SERVICE_WASM" ]; then
     echo "❌ Error: Could not find WASM files"
