@@ -50,9 +50,17 @@ const Marketplace: React.FC<MarketplaceProps> = ({ onSelectJob }) => {
     fetchJobs();
   }, [fetchJobs]);
 
+  // Helper function to compare status (case-insensitive) - defined early for use in filters
+  const matchStatus = (jobStatus: string, targetStatus: JobStatus | string): boolean => {
+    if (!jobStatus || !targetStatus) return false;
+    const normalizedJob = String(jobStatus).toUpperCase().replace('_', '');
+    const normalizedTarget = String(targetStatus).toUpperCase().replace('_', '');
+    return normalizedJob === normalizedTarget;
+  };
+
   // Apply filters and sorting (for mock data - blockchain uses server-side filtering)
   const filteredAndSortedJobs = !isLineraEnabled() ? jobs
-    .filter(job => quickFilter === 'All' || job.status === quickFilter)
+    .filter(job => quickFilter === 'All' || matchStatus(job.status, quickFilter))
     .filter(job => !filter.minPayment || job.payment >= filter.minPayment)
     .filter(job => !filter.maxPayment || job.payment <= filter.maxPayment)
     .sort((a, b) => {
@@ -75,9 +83,9 @@ const Marketplace: React.FC<MarketplaceProps> = ({ onSelectJob }) => {
 
   const statusCounts = {
     all: jobs.length,
-    posted: jobs.filter(j => j.status === JobStatus.Posted).length,
-    inProgress: jobs.filter(j => j.status === JobStatus.InProgress).length,
-    completed: jobs.filter(j => j.status === JobStatus.Completed).length,
+    posted: jobs.filter(j => matchStatus(j.status, JobStatus.Posted)).length,
+    inProgress: jobs.filter(j => matchStatus(j.status, JobStatus.InProgress)).length,
+    completed: jobs.filter(j => matchStatus(j.status, JobStatus.Completed)).length,
   };
 
   const FilterButton: React.FC<{ status: JobStatus | 'All'; count: number }> = ({ status, count }) => {

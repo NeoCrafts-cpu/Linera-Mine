@@ -32,14 +32,16 @@ const AgentProfilePage: React.FC<AgentProfilePageProps> = ({ agentOwner, onBack,
       const agentJobs = jobsData.filter(j => j.agent === agentOwner);
       setJobs(agentJobs);
 
-      // Try to get ratings
-      if (isLineraEnabled()) {
-        try {
-          const ratingsData = await getAgentRatings(agentOwner);
-          setRatings(ratingsData);
-        } catch (e) {
-          console.log('Ratings not available');
-        }
+      // Get ratings - filter by jobs this agent worked on
+      try {
+        const ratingsData = await getAgentRatings(agentOwner);
+        // Filter ratings to only include those for jobs this agent completed
+        const agentJobIds = agentJobs.map(j => j.id);
+        const filteredRatings = ratingsData.filter(r => agentJobIds.includes(r.jobId));
+        setRatings(filteredRatings);
+      } catch (e) {
+        console.log('Ratings not available:', e);
+        setRatings([]);
       }
     } catch (error) {
       console.error('Failed to fetch agent profile:', error);
@@ -73,9 +75,18 @@ const AgentProfilePage: React.FC<AgentProfilePageProps> = ({ agentOwner, onBack,
     );
   }
 
-  const completedJobs = jobs.filter(j => j.status === 'Completed' || j.status === 'COMPLETED');
-  const inProgressJobs = jobs.filter(j => j.status === 'InProgress' || j.status === 'IN_PROGRESS');
-  const totalEarnings = completedJobs.reduce((sum, j) => sum + j.payment, 0);
+  const completedJobs = jobs.filter(j => {
+    const status = String(j.status).toUpperCase();
+    return status === 'COMPLETED';
+  });
+  const inProgressJobs = jobs.filter(j => {
+    const status = String(j.status).toUpperCase();
+    return status === 'INPROGRESS' || status === 'IN_PROGRESS';
+  });
+  const totalEarnings = completedJobs.reduce((sum, j) => {
+    const payment = typeof j.payment === 'string' ? parseFloat(j.payment) : (j.payment || 0);
+    return sum + payment;
+  }, 0);
 
   const StarRating: React.FC<{ rating: number }> = ({ rating }) => (
     <div className="flex items-center gap-0.5">

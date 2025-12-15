@@ -56,13 +56,18 @@ const MyDashboard: React.FC<MyDashboardProps> = ({ onSelectJob }) => {
   // Get current user's agent profile
   const myAgentProfile = agents.find(a => a.owner === currentUser);
 
-  // Stats
+  // Stats - ensure payment is parsed as number
+  const parsePayment = (payment: any): number => {
+    if (typeof payment === 'string') return parseFloat(payment) || 0;
+    return payment || 0;
+  };
+  
   const totalEarnings = myCompletedJobs
     .filter(j => j.agent === currentUser)
-    .reduce((sum, j) => sum + j.payment, 0);
+    .reduce((sum, j) => sum + parsePayment(j.payment), 0);
   const totalSpent = myCompletedJobs
     .filter(j => j.client === currentUser)
-    .reduce((sum, j) => sum + j.payment, 0);
+    .reduce((sum, j) => sum + parsePayment(j.payment), 0);
 
   const TabButton: React.FC<{ tab: TabType; label: string; count: number; icon: string }> = ({ tab, label, count, icon }) => (
     <button

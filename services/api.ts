@@ -443,7 +443,14 @@ export async function getJobsFromChain(): Promise<Job[]> {
   
   try {
     const data = await executeApplicationQuery(query);
-    return data.jobs || [];
+    // Normalize status and convert payment to number from blockchain
+    const jobs = (data.jobs || []).map((job: any) => ({
+      ...job,
+      status: normalizeJobStatus(job.status),
+      payment: typeof job.payment === 'string' ? parseFloat(job.payment) : (job.payment || 0),
+      id: typeof job.id === 'string' ? parseInt(job.id, 10) : job.id
+    }));
+    return jobs;
   } catch (error) {
     console.error('Failed to fetch jobs from chain:', error);
     return [];
@@ -697,15 +704,75 @@ export async function getMarketplaceStats(): Promise<MarketplaceStats> {
 }
 
 /**
+ * Normalize job status from blockchain format to TypeScript enum format
+ * Handles: POSTED -> Posted, IN_PROGRESS -> InProgress, COMPLETED -> Completed, CANCELLED -> Cancelled
+ */
+function normalizeJobStatus(status: string): JobStatus {
+  if (!status) return JobStatus.Posted;
+  
+  const upperStatus = status.toUpperCase();
+  switch (upperStatus) {
+    case 'POSTED':
+      return JobStatus.Posted;
+    case 'IN_PROGRESS':
+    case 'INPROGRESS':
+      return JobStatus.InProgress;
+    case 'COMPLETED':
+      return JobStatus.Completed;
+    case 'CANCELLED':
+    case 'CANCELED':
+      return JobStatus.Cancelled;
+    default:
+      // Try to match if already in correct format
+      if (Object.values(JobStatus).includes(status as JobStatus)) {
+        return status as JobStatus;
+      }
+      console.warn('Unknown job status:', status);
+      return JobStatus.Posted;
+  }
+}
+
+/**
  * Rate an agent after job completion
+ * Note: rateAgent mutation may not exist in all contract versions
  */
 export async function rateAgentOnChain(jobId: number, rating: number, review: string): Promise<any> {
-  const mutation = `
-    mutation RateAgent($jobId: Int!, $rating: Int!, $review: String!) {
-      rateAgent(jobId: $jobId, rating: $rating, review: $review)
+  // Get current user address for the rating
+  const rater = getCurrentUserAddress() || '0x0000000000000000000000000000000000000000000000000000000000000000' as Owner;
+  
+  // Create rating object
+  const ratingObj: AgentRating = {
+    jobId,
+    rater,
+    rating,
+    review,
+    timestamp: new Date().toISOString()
+  };
+
+  // Always save locally first as backup
+  saveLocalRating(ratingObj);
+
+  // If Linera is not enabled, just use local storage
+  if (!USE_LINERA) {
+    console.log('Mock: Rating agent for job', jobId, 'with rating', rating);
+    return simulateApiCall({ success: true, jobId, rating, review });
+  }
+
+  try {
+    const mutation = `
+      mutation RateAgent($jobId: Int!, $rating: Int!, $review: String!) {
+        rateAgent(jobId: $jobId, rating: $rating, review: $review)
+      }
+    `;
+    return await executeApplicationMutation(mutation, { jobId, rating, review });
+  } catch (error: any) {
+    // If the mutation doesn't exist in the contract, rating is still saved locally
+    if (error.message?.includes('Unknown field') || error.message?.includes('rateAgent')) {
+      console.warn('rateAgent mutation not available in contract, rating saved locally');
+      return { success: true, message: 'Rating saved locally', jobId, rating, review };
     }
-  `;
-  return executeApplicationMutation(mutation, { jobId, rating, review });
+    throw error;
+  }
 }
 
 /**
@@ -720,14 +787,43 @@ export async function updateAgentProfileOnChain(name?: string, serviceDescriptio
   return executeApplicationMutation(mutation, { name, serviceDescription });
 }
 
+// Local storage key for ratings (fallback when contract doesn't support it)
+const RATINGS_STORAGE_KEY = 'linera_mine_ratings';
+
+function getLocalRatings(): AgentRating[] {
+  try {
+    const stored = localStorage.getItem(RATINGS_STORAGE_KEY);
+    return stored ? JSON.parse(stored) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveLocalRating(rating: AgentRating): void {
+  try {
+    const ratings = getLocalRatings();
+    ratings.push(rating);
+    localStorage.setItem(RATINGS_STORAGE_KEY, JSON.stringify(ratings));
+  } catch (e) {
+    console.error('Failed to save rating locally:', e);
+  }
+}
+
 /**
  * Get agent ratings/reviews
  */
 export async function getAgentRatings(agentOwner: Owner): Promise<AgentRating[]> {
+  // First try to get from local storage (always available)
+  const localRatings = getLocalRatings().filter(r => {
+    // Match ratings for this agent (we store by jobId, need to cross-reference)
+    return true; // Return all for now, filter in component
+  });
+
   if (!USE_LINERA) {
-    return simulateApiCall([]);
+    return simulateApiCall(localRatings);
   }
 
+  // Try blockchain first
   const query = `
     query GetAgentRatings($agentOwner: String!) {
       agentRatings(agentOwner: $agentOwner) {
@@ -742,10 +838,15 @@ export async function getAgentRatings(agentOwner: Owner): Promise<AgentRating[]>
   
   try {
     const data = await executeApplicationQuery(query, { agentOwner });
-    return data.agentRatings || [];
+    const chainRatings = data.agentRatings || [];
+    // Merge with local ratings (prefer chain data if available)
+    if (chainRatings.length > 0) {
+      return chainRatings;
+    }
+    return localRatings;
   } catch (error) {
-    console.error('Failed to fetch agent ratings:', error);
-    return [];
+    console.error('Failed to fetch agent ratings from chain, using local:', error);
+    return localRatings;
   }
 }
 
