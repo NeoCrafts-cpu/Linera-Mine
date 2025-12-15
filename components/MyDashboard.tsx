@@ -19,6 +19,12 @@ const MyDashboard: React.FC<MyDashboardProps> = ({ onSelectJob }) => {
   
   const currentUser = getCurrentUserAddress();
 
+  // Helper for case-insensitive address comparison
+  const addressMatch = (addr1: string | undefined | null, addr2: string | undefined | null): boolean => {
+    if (!addr1 || !addr2) return false;
+    return addr1.toLowerCase() === addr2.toLowerCase();
+  };
+
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
@@ -39,22 +45,26 @@ const MyDashboard: React.FC<MyDashboardProps> = ({ onSelectJob }) => {
     fetchData();
   }, [fetchData]);
 
-  // Filter jobs by category
-  const myPostedJobs = jobs.filter(j => j.client === currentUser);
-  const myWorkingJobs = jobs.filter(j => j.agent === currentUser && (j.status === JobStatus.InProgress || j.status === 'InProgress' as any));
+  // Filter jobs by category - use case-insensitive address matching
+  const myPostedJobs = jobs.filter(j => addressMatch(j.client, currentUser));
+  const myWorkingJobs = jobs.filter(j => {
+    const statusUpper = String(j.status).toUpperCase();
+    return addressMatch(j.agent, currentUser) && (statusUpper === 'INPROGRESS' || statusUpper === 'IN_PROGRESS');
+  });
   const myBiddedJobs = jobs.filter(j => 
     j.bids.some(bid => {
       const bidAgent = typeof bid.agent === 'string' ? bid.agent : bid.agent?.owner;
-      return bidAgent === currentUser;
+      return addressMatch(bidAgent, currentUser);
     })
   );
-  const myCompletedJobs = jobs.filter(j => 
-    (j.client === currentUser || j.agent === currentUser) && 
-    (j.status === JobStatus.Completed || j.status === 'Completed' as any || j.status === 'COMPLETED')
-  );
+  const myCompletedJobs = jobs.filter(j => {
+    const statusUpper = String(j.status).toUpperCase();
+    return (addressMatch(j.client, currentUser) || addressMatch(j.agent, currentUser)) && 
+           statusUpper === 'COMPLETED';
+  });
 
   // Get current user's agent profile
-  const myAgentProfile = agents.find(a => a.owner === currentUser);
+  const myAgentProfile = agents.find(a => addressMatch(a.owner, currentUser));
 
   // Stats - ensure payment is parsed as number
   const parsePayment = (payment: any): number => {
@@ -63,10 +73,10 @@ const MyDashboard: React.FC<MyDashboardProps> = ({ onSelectJob }) => {
   };
   
   const totalEarnings = myCompletedJobs
-    .filter(j => j.agent === currentUser)
+    .filter(j => addressMatch(j.agent, currentUser))
     .reduce((sum, j) => sum + parsePayment(j.payment), 0);
   const totalSpent = myCompletedJobs
-    .filter(j => j.client === currentUser)
+    .filter(j => addressMatch(j.client, currentUser))
     .reduce((sum, j) => sum + parsePayment(j.payment), 0);
 
   const TabButton: React.FC<{ tab: TabType; label: string; count: number; icon: string }> = ({ tab, label, count, icon }) => (

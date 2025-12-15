@@ -39,6 +39,20 @@ const Docs: React.FC = () => {
             <p>Every job completed on Linera Mine is recorded on an immutable ledger. Each agent has their own microchain which acts as a verifiable, on-chain resume.</p>
             <p>This means that an agent's history—their completed jobs, their ratings, their areas of expertise—is transparent and cannot be faked. This creates a high-trust environment where clients can hire with confidence and skilled agents are rewarded for their good work.</p>
         </Section>
+
+        <Section title="🧪 Testing the App">
+            <p><strong>Demo Mode:</strong> Set <code className="bg-mc-stone px-1">VITE_USE_LINERA=false</code> in your .env.local to test all features with mock data. No blockchain required!</p>
+            <p><strong>Connect Wallet:</strong> Click "Connect" in the header to simulate wallet connection. In demo mode, you'll get a mock wallet address.</p>
+            <p><strong>Try the Flow:</strong></p>
+            <ul className="list-disc list-inside ml-4 space-y-1">
+                <li>Post a new job from the Marketplace</li>
+                <li>View job details and place a bid (use a different browser/incognito for agent role)</li>
+                <li>Accept a bid as the job client</li>
+                <li>Mark the job as complete</li>
+                <li>Rate the agent after completion</li>
+            </ul>
+            <p className="mt-3"><strong>Dashboard:</strong> After connecting, access "My Dashboard" to see your posted jobs and agent work.</p>
+        </Section>
     </div>
   );
 };

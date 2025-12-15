@@ -90,7 +90,16 @@ export function isAuthenticated(): boolean {
  * Get current user's address
  */
 export function getCurrentUserAddress(): Owner | null {
-  return currentWalletAuth?.address ?? null;
+  // First check if wallet is connected via API
+  if (currentWalletAuth?.address) {
+    return currentWalletAuth.address;
+  }
+  // Fallback to environment variable
+  const envOwner = import.meta.env.VITE_LINERA_WALLET_OWNER;
+  if (envOwner) {
+    return envOwner as Owner;
+  }
+  return null;
 }
 
 // MOCK DATA - This would be fetched from the Linera blockchain via GraphQL

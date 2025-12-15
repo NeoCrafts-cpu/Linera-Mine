@@ -9,6 +9,12 @@ interface PlaceBidModalProps {
   onBidPlaced: () => void;
 }
 
+// Helper function for case-insensitive address comparison
+const addressMatch = (addr1: string | null | undefined, addr2: string | null | undefined): boolean => {
+  if (!addr1 || !addr2) return false;
+  return addr1.toLowerCase() === addr2.toLowerCase();
+};
+
 export const PlaceBidModal: React.FC<PlaceBidModalProps> = ({ job, onClose, onBidPlaced }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -43,7 +49,7 @@ export const PlaceBidModal: React.FC<PlaceBidModalProps> = ({ job, onClose, onBi
   // Check if user already bid on this job
   const hasAlreadyBid = job.bids.some(bid => {
     const bidAgent = typeof bid.agent === 'string' ? bid.agent : bid.agent?.owner;
-    return bidAgent === currentUser;
+    return addressMatch(bidAgent, currentUser);
   });
 
   return (

@@ -6,14 +6,69 @@ A decentralized marketplace for AI agents built on the **Linera blockchain**. Po
 
 [![React](https://img.shields.io/badge/React-19.2.0-blue.svg)](https://reactjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.8.2-blue.svg)](https://www.typescriptlang.org/)
-[![Linera](https://img.shields.io/badge/Linera-0.15.5-green.svg)](https://linera.io/)
+[![Linera](https://img.shields.io/badge/Linera-0.15.6-green.svg)](https://linera.io/)
 [![Docker](https://img.shields.io/badge/Docker-Ready-blue.svg)](https://docker.com/)
 
 ---
 
-## 🚀 Quick Start (Docker - Recommended)
+## 🧪 Quick Testing Guide (For Judges)
 
-The easiest way to run Linera Mine is with Docker:
+### Option 1: Demo Mode (No Blockchain Required) - FASTEST
+
+Test all UI features without any blockchain setup:
+
+```bash
+# Clone the repository
+git clone https://github.com/NeoCrafts-cpu/Linera-Mine.git
+cd Linera-Mine
+
+# Install dependencies
+npm install
+
+# Create .env.local for demo mode
+echo "VITE_USE_LINERA=false" > .env.local
+
+# Start the app
+npm run dev
+```
+
+Open `http://localhost:5173` and explore all features with mock data:
+- ✅ Browse AI Agent profiles
+- ✅ View Job Marketplace with filtering
+- ✅ Post new jobs
+- ✅ Place bids on jobs
+- ✅ Accept bids as job client
+- ✅ Complete jobs and rate agents
+- ✅ View My Dashboard / Agent Dashboard
+
+### Option 2: Testnet Mode (Live Blockchain)
+
+Connect to our deployed contract on Linera Testnet Conway:
+
+```bash
+# Clone and install
+git clone https://github.com/NeoCrafts-cpu/Linera-Mine.git
+cd Linera-Mine
+npm install
+
+# Create .env.local with testnet config
+cat > .env.local << 'EOF'
+VITE_USE_LINERA=true
+VITE_LINERA_CHAIN_ID=c2a6a660f84521a3d2e98156a558c5c04275874e49879895bc16a9af295e8e2a
+VITE_LINERA_APP_ID=9843ce3089cfe7001492d420237e2d45d6a39347fdd0db33d1634ae86864de9f
+VITE_LINERA_PORT=8081
+VITE_LINERA_GRAPHQL_URL=http://localhost:8081
+VITE_LINERA_WALLET_OWNER=0xbfec8014a1233db36156ab4e66abf704f68d79ccb1dff4492c19098259651120
+EOF
+
+# Start Linera service (requires Linera CLI installed)
+linera service --port 8081
+
+# In another terminal, start frontend
+npm run dev
+```
+
+### Option 3: Docker (Full Local Network)
 
 ```bash
 # Clone the repository

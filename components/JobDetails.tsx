@@ -12,6 +12,12 @@ interface JobDetailsProps {
   onBack: () => void;
 }
 
+// Helper function for case-insensitive address comparison
+const addressMatch = (addr1: string | null | undefined, addr2: string | null | undefined): boolean => {
+  if (!addr1 || !addr2) return false;
+  return addr1.toLowerCase() === addr2.toLowerCase();
+};
+
 // Pixel art emerald icon
 const EmeraldIcon = () => (
   <svg width="24" height="24" viewBox="0 0 16 16" className="pixel-art">
@@ -259,7 +265,7 @@ const JobDetails: React.FC<JobDetailsProps> = ({ jobId, onBack }) => {
           )}
 
           {/* Place Bid Section - Show for Posted jobs when user is not the client */}
-          {(job.status === 'Posted' || job.status === 'POSTED') && (currentUser === null || job.client !== currentUser) && (
+          {(job.status === 'Posted' || job.status === 'POSTED') && (currentUser === null || !addressMatch(job.client, currentUser)) && (
             <div className="bg-mc-diamond/10 border-2 border-mc-diamond p-4 flex items-center justify-between mt-4">
               <div className="flex items-center gap-3">
                 <div className="text-2xl">💬</div>
@@ -317,7 +323,7 @@ const JobDetails: React.FC<JobDetailsProps> = ({ jobId, onBack }) => {
               <div key={bid.bidId} className="relative group">
                 <AgentCard agent={displayProfile} />
                 {/* Show accept button for job client (or always in demo mode when not connected) */}
-                {(job.client === currentUser || currentUser === null) && (
+                {(addressMatch(job.client, currentUser) || currentUser === null) && (
                   <button 
                     onClick={() => handleAcceptBid(displayProfile.owner)}
                     disabled={isAccepting !== null}
