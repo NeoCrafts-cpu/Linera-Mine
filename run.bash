@@ -58,7 +58,7 @@ echo "🚀 Publishing application to Linera..."
 cd /build/linera-contracts/job-marketplace
 APP_ID=$(linera publish-and-create \
     "$CONTRACT_WASM" "$SERVICE_WASM" \
-    --json-argument '{"job_counter": 0}' 2>&1 | grep -oE '[a-f0-9]{64}' | tail -1)
+    2>&1 | grep -oE '[a-f0-9]{64}' | tail -1)
 
 echo "📦 Application ID: $APP_ID"
 

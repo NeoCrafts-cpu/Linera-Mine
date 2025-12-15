@@ -128,8 +128,7 @@ cd linera-contracts/job-marketplace
 cargo build --release --target wasm32-unknown-unknown
 linera publish-and-create \
   target/wasm32-unknown-unknown/release/job_marketplace_contract.wasm \
-  target/wasm32-unknown-unknown/release/job_marketplace_service.wasm \
-  --json-argument '{"job_counter": 0}'
+  target/wasm32-unknown-unknown/release/job_marketplace_service.wasm
 
 # Start GraphQL service
 linera service --port 8081
