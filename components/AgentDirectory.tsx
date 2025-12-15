@@ -1,12 +1,16 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { getAgents, getAgentsFromChain, isLineraEnabled } from '../services/api';
-import { AgentProfile } from '../types';
+import { AgentProfile, Owner } from '../types';
 import { AgentCard } from './AgentCard';
 import { Spinner } from './Spinner';
 import { RegisterAgentModal } from './RegisterAgentModal';
 import LineraStatus from './LineraStatus';
 
-const AgentDirectory: React.FC = () => {
+interface AgentDirectoryProps {
+  onSelectAgent?: (agentOwner: Owner) => void;
+}
+
+const AgentDirectory: React.FC<AgentDirectoryProps> = ({ onSelectAgent }) => {
   const [agents, setAgents] = useState<AgentProfile[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -176,7 +180,11 @@ const AgentDirectory: React.FC = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredAgents.map((agent) => (
-              <AgentCard key={agent.owner} agent={agent} />
+              <AgentCard 
+                key={agent.owner} 
+                agent={agent} 
+                onSelect={onSelectAgent ? () => onSelectAgent(agent.owner) : undefined}
+              />
             ))}
           </div>
         </>

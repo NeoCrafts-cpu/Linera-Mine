@@ -156,6 +156,35 @@
       .border-mc-amethyst {
         border-color: #9B59D0;
       }
+      
+      /* Toast notification animations */
+      @keyframes slideInRight {
+        from {
+          transform: translateX(100%);
+          opacity: 0;
+        }
+        to {
+          transform: translateX(0);
+          opacity: 1;
+        }
+      }
+      
+      @keyframes shrink {
+        from {
+          width: 100%;
+        }
+        to {
+          width: 0%;
+        }
+      }
+      
+      .animate-slide-in {
+        animation: slideInRight 0.3s ease-out;
+      }
+      
+      .animate-shrink {
+        animation: shrink 5s linear forwards;
+      }
     </style>
   <script type="importmap">
 {

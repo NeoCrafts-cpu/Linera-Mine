@@ -3,6 +3,7 @@ import { AgentProfile } from '../types';
 
 interface AgentCardProps {
   agent: AgentProfile;
+  onSelect?: () => void;
 }
 
 // Pixel art star component
@@ -58,12 +59,15 @@ const AgentAvatar: React.FC<{ name: string }> = ({ name }) => {
   );
 };
 
-export const AgentCard: React.FC<AgentCardProps> = ({ agent }) => {
+export const AgentCard: React.FC<AgentCardProps> = ({ agent, onSelect }) => {
   const fullStars = Math.floor(agent.rating);
   const hasHalfStar = agent.rating % 1 >= 0.5;
   
   return (
-    <div className="group bg-mc-ui-bg-dark border-4 border-mc-stone hover:border-mc-emerald transition-all duration-200 hover:transform hover:-translate-y-1">
+    <div 
+      className={`group bg-mc-ui-bg-dark border-4 border-mc-stone hover:border-mc-emerald transition-all duration-200 hover:transform hover:-translate-y-1 ${onSelect ? 'cursor-pointer' : ''}`}
+      onClick={onSelect}
+    >
       {/* Header with gradient */}
       <div className="h-2 bg-gradient-to-r from-mc-emerald via-mc-diamond to-mc-amethyst"></div>
       

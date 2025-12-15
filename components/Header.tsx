@@ -1,6 +1,6 @@
 import React from 'react';
 
-type HeaderView = 'home' | 'marketplace' | 'agents' | 'docs';
+type HeaderView = 'home' | 'marketplace' | 'agents' | 'docs' | 'dashboard';
 
 interface HeaderProps {
     activeView: string;
@@ -20,7 +20,7 @@ export const Header: React.FC<HeaderProps> = ({ activeView, setActiveView, isCon
     };
 
     const NavButton: React.FC<{ view: HeaderView; label: string; icon?: React.ReactNode }> = ({ view, label, icon }) => {
-        const isActive = activeView === view || (view === 'marketplace' && activeView === 'job-details');
+        const isActive = activeView === view || (view === 'marketplace' && activeView === 'job-details') || (view === 'agents' && activeView === 'agent-profile');
         return (
             <button
                 onClick={() => setActiveView(view)}
@@ -72,6 +72,15 @@ export const Header: React.FC<HeaderProps> = ({ activeView, setActiveView, isCon
                             <path d="M9 4.804A7.968 7.968 0 005.5 4c-1.255 0-2.443.29-3.5.804v10A7.969 7.969 0 015.5 14c1.669 0 3.218.51 4.5 1.385A7.962 7.962 0 0114.5 14c1.255 0 2.443.29 3.5.804v-10A7.968 7.968 0 0014.5 4c-1.255 0-2.443.29-3.5.804V12a1 1 0 11-2 0V4.804z"/>
                         </svg>
                     } />
+                    
+                    {/* Dashboard - only show when connected */}
+                    {isConnected && (
+                        <NavButton view="dashboard" label="Dashboard" icon={
+                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h12a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6z"/>
+                            </svg>
+                        } />
+                    )}
 
                     {/* Wallet Connection */}
                     {isConnected && userAddress ? (
