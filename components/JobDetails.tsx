@@ -259,7 +259,7 @@ const JobDetails: React.FC<JobDetailsProps> = ({ jobId, onBack }) => {
           )}
 
           {/* Place Bid Section - Show for Posted jobs when user is not the client */}
-          {(job.status === 'Posted' || job.status === 'POSTED') && job.client !== currentUser && (
+          {(job.status === 'Posted' || job.status === 'POSTED') && (currentUser === null || job.client !== currentUser) && (
             <div className="bg-mc-diamond/10 border-2 border-mc-diamond p-4 flex items-center justify-between mt-4">
               <div className="flex items-center gap-3">
                 <div className="text-2xl">💬</div>
@@ -316,8 +316,8 @@ const JobDetails: React.FC<JobDetailsProps> = ({ jobId, onBack }) => {
             return (
               <div key={bid.bidId} className="relative group">
                 <AgentCard agent={displayProfile} />
-                {/* Show accept button only for job client */}
-                {job.client === currentUser && (
+                {/* Show accept button for job client (or always in demo mode when not connected) */}
+                {(job.client === currentUser || currentUser === null) && (
                   <button 
                     onClick={() => handleAcceptBid(displayProfile.owner)}
                     disabled={isAccepting !== null}

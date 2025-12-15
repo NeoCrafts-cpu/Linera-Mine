@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { placeBidOnChain, isLineraEnabled, getCurrentUserAddress } from '../services/api';
+import { placeBidOnChain, placeBid, isLineraEnabled, getCurrentUserAddress } from '../services/api';
 import { Job } from '../types';
 import { Spinner } from './Spinner';
 
@@ -26,7 +26,7 @@ export const PlaceBidModal: React.FC<PlaceBidModalProps> = ({ job, onClose, onBi
         await placeBidOnChain(job.id);
       } else {
         // Mock bid for demo mode
-        console.log('Mock bid placed on job:', job.id);
+        await placeBid(job.id);
       }
       setSuccess(true);
       setTimeout(() => {

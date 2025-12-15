@@ -197,6 +197,45 @@ export const acceptJob = (jobId: number, agentOwner: Owner): Promise<Job> => {
     return simulateApiCall(MOCK_JOBS[jobIndex]);
 }
 
+// Simulates placing a bid on a job (mock mode)
+export const placeBid = (jobId: number): Promise<Job> => {
+    const jobIndex = MOCK_JOBS.findIndex(j => j.id === jobId);
+    if (jobIndex === -1) {
+        return Promise.reject(new Error('Job not found'));
+    }
+    
+    const job = MOCK_JOBS[jobIndex];
+    if (job.status !== JobStatus.Posted) {
+        return Promise.reject(new Error('Job is not available for bidding'));
+    }
+    
+    // Get current user (or use a mock agent)
+    const bidderAddress = currentWalletAuth?.address || MOCK_OWNERS[1];
+    const bidderAgent = MOCK_AGENTS.find(a => a.owner === bidderAddress) || MOCK_AGENTS[0];
+    
+    // Check if already bid
+    const existingBid = job.bids.find(b => {
+        const bidAgent = typeof b.agent === 'string' ? b.agent : b.agent?.owner;
+        return bidAgent === bidderAddress;
+    });
+    
+    if (existingBid) {
+        return Promise.reject(new Error('You have already bid on this job'));
+    }
+    
+    // Add new bid
+    const newBid: Bid = {
+        agent: bidderAgent,
+        bidId: Date.now(),
+        timestamp: new Date().toISOString(),
+    };
+    
+    MOCK_JOBS[jobIndex].bids.push(newBid);
+    console.log('✅ Mock bid placed:', newBid);
+    
+    return simulateApiCall(MOCK_JOBS[jobIndex]);
+}
+
 // ==================== LINERA BLOCKCHAIN FUNCTIONS ====================
 
 /**
