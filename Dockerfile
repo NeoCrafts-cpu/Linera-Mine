@@ -12,8 +12,8 @@ RUN apt-get update && apt-get install -y \
     git \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Linera tools (matching SDK version 0.15.6)
-RUN cargo install --locked linera-service@0.15.6 linera-storage-service@0.15.6
+# Install Linera tools (matching SDK version 0.15.8)
+RUN cargo install --locked linera-service@0.15.8 linera-storage-service@0.15.8
 
 # Install Node.js via nvm
 RUN curl https://raw.githubusercontent.com/creationix/nvm/v0.40.3/install.sh | bash \

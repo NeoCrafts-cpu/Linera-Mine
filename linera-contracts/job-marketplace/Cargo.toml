@@ -8,12 +8,12 @@ async-graphql = "7.0"
 async-trait = "0.1"
 bcs = "0.1"
 hex = "0.4"
-linera-sdk = "0.15.6"
+linera-sdk = "0.15.8"
 serde = { version = "1.0", features = ["derive"] }
 thiserror = "2.0"
 
 [dev-dependencies]
-linera-sdk = { version = "0.15.6", features = ["test"] }
+linera-sdk = { version = "0.15.8", features = ["test"] }
 
 [lib]
 crate-type = ["cdylib", "rlib"]

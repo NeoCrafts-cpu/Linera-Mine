@@ -1,5 +1,13 @@
 
-import { AgentProfile, Job, JobStatus, Owner, Bid, JobFilter, AgentFilter, JobSortField, AgentSortField, SortDirection, MarketplaceStats, WalletAuth, AgentRating } from '../types';
+import {
+  AgentProfile, Job, JobStatus, Owner, Bid, JobFilter, AgentFilter, JobSortField, 
+  AgentSortField, SortDirection, MarketplaceStats, WalletAuth, AgentRating,
+  // New v2.0 types
+  JobCategory, EscrowInfo, Dispute, DisputeStatus, ChatMessage, VerificationLevel,
+  PostJobInput, PlaceBidInput, RegisterAgentInput, UpdateAgentInput,
+  OpenDisputeInput, ResolveDisputeInput, SendMessageInput,
+  Milestone, MilestoneStatus, EscrowStatus
+} from '../types';
 import * as Linera from './linera';
 
 // Toggle between mock data and Linera blockchain
@@ -1001,3 +1009,621 @@ export function subscribeToStats(
   };
 }
 
+// ==================== V2.0 ENHANCED API FUNCTIONS ====================
+
+/**
+ * Post a job with enhanced features (v2.0)
+ */
+export async function postJobEnhanced(input: PostJobInput): Promise<any> {
+  if (!USE_LINERA) {
+    // Mock implementation
+    const newJob: Job = {
+      id: MOCK_JOBS.length + 1,
+      client: (currentWalletAuth?.address || MOCK_OWNERS[0]) as Owner,
+      title: input.title,
+      description: input.description,
+      payment: typeof input.payment === 'string' ? parseFloat(input.payment) : input.payment,
+      status: JobStatus.Posted,
+      bids: [],
+      category: input.category,
+      tags: input.tags,
+      deadline: input.deadline ? new Date(input.deadline * 1000).toISOString() : undefined,
+      milestones: input.milestones.map((m, i) => ({
+        id: i,
+        title: m.title,
+        description: m.description,
+        paymentPercentage: m.paymentPercentage,
+        status: MilestoneStatus.Pending,
+        dueDate: m.dueDays ? new Date(Date.now() + m.dueDays * 24 * 60 * 60 * 1000).toISOString() : undefined,
+      })),
+    };
+    MOCK_JOBS.unshift(newJob);
+    return simulateApiCall(newJob);
+  }
+
+  const mutation = `
+    mutation PostJob(
+      $title: String!,
+      $description: String!,
+      $payment: String!,
+      $category: JobCategory!,
+      $tags: [String!]!,
+      $deadline: Int,
+      $milestones: [MilestoneInput!]!
+    ) {
+      postJob(
+        title: $title,
+        description: $description,
+        payment: $payment,
+        category: $category,
+        tags: $tags,
+        deadline: $deadline,
+        milestones: $milestones
+      )
+    }
+  `;
+  return executeApplicationMutation(mutation, {
+    title: input.title,
+    description: input.description,
+    payment: input.payment.toString(),
+    category: input.category,
+    tags: input.tags,
+    deadline: input.deadline,
+    milestones: input.milestones,
+  });
+}
+
+/**
+ * Place a bid with amount and proposal (v2.0)
+ */
+export async function placeBidEnhanced(input: PlaceBidInput): Promise<any> {
+  if (!USE_LINERA) {
+    const jobIndex = MOCK_JOBS.findIndex(j => j.id === input.jobId);
+    if (jobIndex === -1) throw new Error('Job not found');
+    
+    const bid: Bid = {
+      agent: currentWalletAuth?.address || MOCK_OWNERS[1],
+      bidId: Date.now(),
+      timestamp: new Date().toISOString(),
+      amount: input.amount,
+      proposal: input.proposal,
+      estimatedDays: input.estimatedDays,
+    };
+    MOCK_JOBS[jobIndex].bids.push(bid);
+    return simulateApiCall(MOCK_JOBS[jobIndex]);
+  }
+
+  const mutation = `
+    mutation PlaceBid($jobId: Int!, $amount: String!, $proposal: String!, $estimatedDays: Int!) {
+      placeBid(jobId: $jobId, amount: $amount, proposal: $proposal, estimatedDays: $estimatedDays)
+    }
+  `;
+  return executeApplicationMutation(mutation, {
+    jobId: input.jobId,
+    amount: input.amount.toString(),
+    proposal: input.proposal,
+    estimatedDays: input.estimatedDays,
+  });
+}
+
+/**
+ * Accept a bid with amount (v2.0)
+ */
+export async function acceptBidEnhanced(jobId: number, agent: Owner, bidAmount: number | string): Promise<any> {
+  if (!USE_LINERA) {
+    const jobIndex = MOCK_JOBS.findIndex(j => j.id === jobId);
+    if (jobIndex !== -1) {
+      MOCK_JOBS[jobIndex].status = JobStatus.InProgress;
+      MOCK_JOBS[jobIndex].agent = agent;
+      MOCK_JOBS[jobIndex].acceptedBidAmount = bidAmount;
+    }
+    return simulateApiCall(MOCK_JOBS[jobIndex]);
+  }
+
+  const mutation = `
+    mutation AcceptBid($jobId: Int!, $agent: String!, $bidAmount: String!) {
+      acceptBid(jobId: $jobId, agent: $agent, bidAmount: $bidAmount)
+    }
+  `;
+  return executeApplicationMutation(mutation, {
+    jobId,
+    agent,
+    bidAmount: bidAmount.toString(),
+  });
+}
+
+/**
+ * Register agent with enhanced profile (v2.0)
+ */
+export async function registerAgentEnhanced(input: RegisterAgentInput): Promise<any> {
+  if (!USE_LINERA) {
+    const newAgent: AgentProfile = {
+      owner: (currentWalletAuth?.address || ('0x' + 'x'.repeat(64))) as Owner,
+      name: input.name,
+      serviceDescription: input.serviceDescription,
+      jobsCompleted: 0,
+      totalRatingPoints: 0,
+      totalRatings: 0,
+      rating: 0,
+      verificationLevel: VerificationLevel.Unverified,
+      skills: input.skills,
+      portfolioUrls: [],
+      hourlyRate: input.hourlyRate,
+      availability: true,
+      responseTimeHours: 24,
+      successRate: 100,
+    };
+    MOCK_AGENTS.push(newAgent);
+    return simulateApiCall(newAgent);
+  }
+
+  const mutation = `
+    mutation RegisterAgent($name: String!, $serviceDescription: String!, $skills: [String!]!, $hourlyRate: String) {
+      registerAgent(name: $name, serviceDescription: $serviceDescription, skills: $skills, hourlyRate: $hourlyRate)
+    }
+  `;
+  return executeApplicationMutation(mutation, {
+    name: input.name,
+    serviceDescription: input.serviceDescription,
+    skills: input.skills,
+    hourlyRate: input.hourlyRate?.toString(),
+  });
+}
+
+/**
+ * Update agent profile (v2.0)
+ */
+export async function updateAgentProfile(input: UpdateAgentInput): Promise<any> {
+  const mutation = `
+    mutation UpdateAgentProfile(
+      $name: String,
+      $serviceDescription: String,
+      $skills: [String!],
+      $portfolioUrls: [String!],
+      $hourlyRate: String,
+      $availability: Boolean
+    ) {
+      updateAgentProfile(
+        name: $name,
+        serviceDescription: $serviceDescription,
+        skills: $skills,
+        portfolioUrls: $portfolioUrls,
+        hourlyRate: $hourlyRate,
+        availability: $availability
+      )
+    }
+  `;
+  return executeApplicationMutation(mutation, {
+    ...input,
+    hourlyRate: input.hourlyRate?.toString(),
+  });
+}
+
+// ==================== MILESTONE OPERATIONS ====================
+
+/**
+ * Submit work for a milestone
+ */
+export async function submitMilestone(jobId: number, milestoneId: number, deliveryNotes: string): Promise<any> {
+  const mutation = `
+    mutation SubmitMilestone($jobId: Int!, $milestoneId: Int!, $deliveryNotes: String!) {
+      submitMilestone(jobId: $jobId, milestoneId: $milestoneId, deliveryNotes: $deliveryNotes)
+    }
+  `;
+  return executeApplicationMutation(mutation, { jobId, milestoneId, deliveryNotes });
+}
+
+/**
+ * Approve a milestone
+ */
+export async function approveMilestone(jobId: number, milestoneId: number): Promise<any> {
+  const mutation = `
+    mutation ApproveMilestone($jobId: Int!, $milestoneId: Int!) {
+      approveMilestone(jobId: $jobId, milestoneId: $milestoneId)
+    }
+  `;
+  return executeApplicationMutation(mutation, { jobId, milestoneId });
+}
+
+/**
+ * Request revision for a milestone
+ */
+export async function requestRevision(jobId: number, milestoneId: number, feedback: string): Promise<any> {
+  const mutation = `
+    mutation RequestRevision($jobId: Int!, $milestoneId: Int!, $feedback: String!) {
+      requestRevision(jobId: $jobId, milestoneId: $milestoneId, feedback: $feedback)
+    }
+  `;
+  return executeApplicationMutation(mutation, { jobId, milestoneId, feedback });
+}
+
+// ==================== DISPUTE OPERATIONS ====================
+
+/**
+ * Open a dispute
+ */
+export async function openDispute(input: OpenDisputeInput): Promise<any> {
+  const mutation = `
+    mutation OpenDispute($jobId: Int!, $reason: String!) {
+      openDispute(jobId: $jobId, reason: $reason)
+    }
+  `;
+  return executeApplicationMutation(mutation, input);
+}
+
+/**
+ * Respond to a dispute
+ */
+export async function respondToDispute(disputeId: number, response: string): Promise<any> {
+  const mutation = `
+    mutation RespondToDispute($disputeId: Int!, $response: String!) {
+      respondToDispute(disputeId: $disputeId, response: $response)
+    }
+  `;
+  return executeApplicationMutation(mutation, { disputeId, response });
+}
+
+/**
+ * Resolve a dispute (admin only)
+ */
+export async function resolveDispute(input: ResolveDisputeInput): Promise<any> {
+  const mutation = `
+    mutation ResolveDispute($disputeId: Int!, $resolution: DisputeStatus!, $refundPercentage: Int, $notes: String!) {
+      resolveDispute(disputeId: $disputeId, resolution: $resolution, refundPercentage: $refundPercentage, notes: $notes)
+    }
+  `;
+  return executeApplicationMutation(mutation, input);
+}
+
+/**
+ * Get all disputes
+ */
+export async function getDisputes(filter?: { status?: DisputeStatus; jobId?: number }): Promise<Dispute[]> {
+  const query = `
+    query GetDisputes($status: DisputeStatus, $jobId: Int) {
+      disputes(filter: { status: $status, jobId: $jobId }) {
+        id
+        jobId
+        initiator
+        reason
+        status
+        createdAt
+        resolvedAt
+        resolutionNotes
+        refundPercentage
+      }
+    }
+  `;
+  try {
+    const data = await executeApplicationQuery(query, filter);
+    return data.disputes || [];
+  } catch (error) {
+    console.error('Failed to fetch disputes:', error);
+    return [];
+  }
+}
+
+/**
+ * Get a specific dispute
+ */
+export async function getDispute(id: number): Promise<Dispute | undefined> {
+  const query = `
+    query GetDispute($id: Int!) {
+      dispute(id: $id) {
+        id
+        jobId
+        initiator
+        reason
+        status
+        createdAt
+        resolvedAt
+        resolutionNotes
+        refundPercentage
+      }
+    }
+  `;
+  try {
+    const data = await executeApplicationQuery(query, { id });
+    return data.dispute;
+  } catch (error) {
+    console.error('Failed to fetch dispute:', error);
+    return undefined;
+  }
+}
+
+// ==================== MESSAGING OPERATIONS ====================
+
+/**
+ * Send a message
+ */
+export async function sendMessage(input: SendMessageInput): Promise<any> {
+  const mutation = `
+    mutation SendMessage($jobId: Int!, $recipient: String!, $content: String!) {
+      sendMessage(jobId: $jobId, recipient: $recipient, content: $content)
+    }
+  `;
+  return executeApplicationMutation(mutation, input);
+}
+
+/**
+ * Mark messages as read
+ */
+export async function markMessagesRead(messageIds: number[]): Promise<any> {
+  const mutation = `
+    mutation MarkMessagesRead($messageIds: [Int!]!) {
+      markMessagesRead(messageIds: $messageIds)
+    }
+  `;
+  return executeApplicationMutation(mutation, { messageIds });
+}
+
+/**
+ * Get messages for a job
+ */
+export async function getMessages(jobId: number): Promise<ChatMessage[]> {
+  const query = `
+    query GetMessages($jobId: Int!) {
+      messages(jobId: $jobId) {
+        id
+        jobId
+        sender
+        recipient
+        content
+        timestamp
+        read
+      }
+    }
+  `;
+  try {
+    const data = await executeApplicationQuery(query, { jobId });
+    return data.messages || [];
+  } catch (error) {
+    console.error('Failed to fetch messages:', error);
+    return [];
+  }
+}
+
+/**
+ * Get unread message count
+ */
+export async function getUnreadMessagesCount(user: string): Promise<number> {
+  const query = `
+    query GetUnreadCount($user: String!) {
+      unreadMessagesCount(user: $user)
+    }
+  `;
+  try {
+    const data = await executeApplicationQuery(query, { user });
+    return data.unreadMessagesCount || 0;
+  } catch (error) {
+    console.error('Failed to fetch unread count:', error);
+    return 0;
+  }
+}
+
+// ==================== ESCROW OPERATIONS ====================
+
+/**
+ * Get escrow info for a job
+ */
+export async function getEscrow(jobId: number): Promise<EscrowInfo | undefined> {
+  const query = `
+    query GetEscrow($jobId: Int!) {
+      escrow(jobId: $jobId) {
+        jobId
+        client
+        agent
+        amount
+        status
+        lockedAt
+        releasedAt
+      }
+    }
+  `;
+  try {
+    const data = await executeApplicationQuery(query, { jobId });
+    return data.escrow;
+  } catch (error) {
+    console.error('Failed to fetch escrow:', error);
+    return undefined;
+  }
+}
+
+/**
+ * Get all active escrows
+ */
+export async function getActiveEscrows(): Promise<EscrowInfo[]> {
+  const query = `
+    query GetActiveEscrows {
+      activeEscrows {
+        jobId
+        client
+        agent
+        amount
+        status
+        lockedAt
+        releasedAt
+      }
+    }
+  `;
+  try {
+    const data = await executeApplicationQuery(query);
+    return data.activeEscrows || [];
+  } catch (error) {
+    console.error('Failed to fetch active escrows:', error);
+    return [];
+  }
+}
+
+// ==================== CATEGORY & SEARCH ====================
+
+/**
+ * Get jobs by category
+ */
+export async function getJobsByCategory(category: JobCategory): Promise<Job[]> {
+  const query = `
+    query GetJobsByCategory($category: JobCategory!) {
+      jobsByCategory(category: $category) {
+        id
+        client
+        title
+        description
+        payment
+        status
+        category
+        tags
+        bids {
+          agent
+          bidId
+          amount
+          proposal
+          estimatedDays
+        }
+        milestones {
+          id
+          title
+          status
+          paymentPercentage
+        }
+      }
+    }
+  `;
+  try {
+    const data = await executeApplicationQuery(query, { category });
+    return data.jobsByCategory || [];
+  } catch (error) {
+    console.error('Failed to fetch jobs by category:', error);
+    return [];
+  }
+}
+
+/**
+ * Search jobs by keyword
+ */
+export async function searchJobs(query: string): Promise<Job[]> {
+  const gqlQuery = `
+    query SearchJobs($query: String!) {
+      searchJobs(query: $query) {
+        id
+        client
+        title
+        description
+        payment
+        status
+        category
+        tags
+        bids {
+          agent
+          bidId
+          amount
+        }
+      }
+    }
+  `;
+  try {
+    const data = await executeApplicationQuery(gqlQuery, { query });
+    return data.searchJobs || [];
+  } catch (error) {
+    console.error('Failed to search jobs:', error);
+    return [];
+  }
+}
+
+/**
+ * Get agents by skill
+ */
+export async function getAgentsBySkill(skill: string): Promise<AgentProfile[]> {
+  const query = `
+    query GetAgentsBySkill($skill: String!) {
+      agentsBySkill(skill: $skill) {
+        owner
+        name
+        serviceDescription
+        skills
+        verificationLevel
+        jobsCompleted
+        totalRatingPoints
+        totalRatings
+        successRate
+        availability
+      }
+    }
+  `;
+  try {
+    const data = await executeApplicationQuery(query, { skill });
+    return data.agentsBySkill || [];
+  } catch (error) {
+    console.error('Failed to fetch agents by skill:', error);
+    return [];
+  }
+}
+
+/**
+ * Get verified agents
+ */
+export async function getVerifiedAgents(minLevel?: VerificationLevel): Promise<AgentProfile[]> {
+  const query = `
+    query GetVerifiedAgents($minLevel: VerificationLevel) {
+      verifiedAgents(minLevel: $minLevel) {
+        owner
+        name
+        serviceDescription
+        skills
+        verificationLevel
+        jobsCompleted
+        totalRatingPoints
+        totalRatings
+        successRate
+        availability
+      }
+    }
+  `;
+  try {
+    const data = await executeApplicationQuery(query, { minLevel });
+    return data.verifiedAgents || [];
+  } catch (error) {
+    console.error('Failed to fetch verified agents:', error);
+    return [];
+  }
+}
+
+// ==================== ENHANCED STATS ====================
+
+/**
+ * Get category statistics
+ */
+export async function getCategoryStats(): Promise<{ category: JobCategory; count: number }[]> {
+  const query = `
+    query GetCategoryStats {
+      categoryStats {
+        category
+        count
+      }
+    }
+  `;
+  try {
+    const data = await executeApplicationQuery(query);
+    return data.categoryStats || [];
+  } catch (error) {
+    console.error('Failed to fetch category stats:', error);
+    return [];
+  }
+}
+
+/**
+ * Get open disputes count
+ */
+export async function getOpenDisputesCount(): Promise<number> {
+  const query = `
+    query GetOpenDisputesCount {
+      openDisputesCount
+    }
+  `;
+  try {
+    const data = await executeApplicationQuery(query);
+    return data.openDisputesCount || 0;
+  } catch (error) {
+    console.error('Failed to fetch open disputes count:', error);
+    return 0;
+  }
+}
