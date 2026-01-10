@@ -1,10 +1,10 @@
 // Linera GraphQL client for connecting React frontend to Linera blockchain
 // This module provides typed GraphQL queries and mutations for your Linera application
 
-const GRAPHQL_URL = import.meta.env.VITE_LINERA_GRAPHQL_URL || 'http://localhost:8080';
+const GRAPHQL_URL = import.meta.env.VITE_LINERA_GRAPHQL_URL || 'http://localhost:8081';
 const CHAIN_ID = import.meta.env.VITE_LINERA_CHAIN_ID || '';
 const APP_ID = import.meta.env.VITE_LINERA_APP_ID || '';
-const PORT = import.meta.env.VITE_LINERA_PORT || '8080';
+const PORT = import.meta.env.VITE_LINERA_PORT || '8081';
 
 // Build the base URL for the Linera service
 const getBaseUrl = () => {
@@ -244,25 +244,49 @@ export async function healthCheck(): Promise<boolean> {
 
 /**
  * Check if Linera connection is available
- * Tests by querying the application's hello endpoint
+ * Tests by querying the application's stats endpoint
  */
 export async function checkLineraConnection(): Promise<boolean> {
   try {
-    // Query the application to verify it's accessible
+    // First check if the node service is running
+    const nodeUrl = getNodeServiceUrl();
+    const nodeResponse = await fetch(nodeUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ query: '{ __typename }' }),
+    });
+    
+    if (!nodeResponse.ok) {
+      console.log('❌ Node service not responding');
+      return false;
+    }
+    
+    // Then check if the application is accessible
     const url = getAppUrl();
+    console.log('🔍 Checking Linera connection at:', url);
+    
     const response = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ query: '{ hello }' }),
+      body: JSON.stringify({ query: '{ stats { totalJobs } }' }),
     });
     
-    if (!response.ok) return false;
+    if (!response.ok) {
+      console.log('❌ Application not responding, status:', response.status);
+      return false;
+    }
     
     const result = await response.json();
-    return !!result.data?.hello;
-  } catch {
+    console.log('✅ Linera connection result:', result);
+    
+    // Check if we got valid data (stats query exists in our contract)
+    return result.data !== undefined;
+  } catch (error) {
+    console.error('❌ Linera connection check failed:', error);
     return false;
   }
 }

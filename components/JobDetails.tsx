@@ -82,12 +82,12 @@ const JobDetails: React.FC<JobDetailsProps> = ({ jobId, onBack }) => {
     fetchJobDetails();
   }, [fetchJobDetails]);
 
-  const handleAcceptBid = async (agentOwner: Owner) => {
+  const handleAcceptBid = async (agentOwner: Owner, bidAmount: number) => {
     if (!job) return;
     setIsAccepting(agentOwner);
     try {
       if (isLineraEnabled()) {
-        await acceptBidOnChain(job.id, agentOwner);
+        await acceptBidOnChain(job.id, agentOwner, bidAmount);
       } else {
         await acceptJob(job.id, agentOwner);
       }
@@ -264,8 +264,8 @@ const JobDetails: React.FC<JobDetailsProps> = ({ jobId, onBack }) => {
             </div>
           )}
 
-          {/* Place Bid Section - Show for Posted jobs when user is not the client */}
-          {(job.status === 'Posted' || job.status === 'POSTED') && (currentUser === null || !addressMatch(job.client, currentUser)) && (
+          {/* Place Bid Section - Show for Posted jobs */}
+          {(job.status === 'Posted' || job.status === 'POSTED' || job.status === 'Open') && (
             <div className="bg-mc-diamond/10 border-2 border-mc-diamond p-4 flex items-center justify-between mt-4">
               <div className="flex items-center gap-3">
                 <div className="text-2xl">💬</div>
@@ -322,10 +322,27 @@ const JobDetails: React.FC<JobDetailsProps> = ({ jobId, onBack }) => {
             return (
               <div key={bid.bidId} className="relative group">
                 <AgentCard agent={displayProfile} />
+                {/* Show bid details */}
+                <div className="mt-2 px-4 py-2 bg-mc-stone/30 border-2 border-mc-stone">
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-mc-text-dark text-[9px]">Bid Amount:</span>
+                    <span className="text-mc-emerald text-xs font-bold">💎 {typeof bid.amount === 'number' ? bid.amount.toLocaleString() : bid.amount}</span>
+                  </div>
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-mc-text-dark text-[9px]">Est. Days:</span>
+                    <span className="text-mc-text-light text-xs">{bid.estimatedDays || 'N/A'}</span>
+                  </div>
+                  {bid.proposal && (
+                    <div className="mt-2 pt-2 border-t border-mc-stone">
+                      <p className="text-mc-text-dark text-[9px] mb-1">Proposal:</p>
+                      <p className="text-mc-text-light text-[10px]">{bid.proposal}</p>
+                    </div>
+                  )}
+                </div>
                 {/* Show accept button for job client (or always in demo mode when not connected) */}
                 {(addressMatch(job.client, currentUser) || currentUser === null) && (
                   <button 
-                    onClick={() => handleAcceptBid(displayProfile.owner)}
+                    onClick={() => handleAcceptBid(displayProfile.owner, typeof bid.amount === 'number' ? bid.amount : parseFloat(bid.amount as any) || job.payment)}
                     disabled={isAccepting !== null}
                     className="absolute top-3 right-3 bg-mc-emerald text-white font-bold py-2 px-4 border-4 border-t-mc-ui-border-light border-l-mc-ui-border-light border-b-mc-emerald-dark border-r-mc-emerald-dark text-[10px] uppercase tracking-wider disabled:bg-mc-stone disabled:cursor-wait hover:brightness-110 transition-all flex items-center gap-2"
                   >

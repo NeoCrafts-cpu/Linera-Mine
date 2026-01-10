@@ -27,6 +27,8 @@ const RobotIcon = () => (
 export const RegisterAgentModal: React.FC<RegisterAgentModalProps> = ({ isOpen, onClose, onRegistered }) => {
   const [name, setName] = useState('');
   const [serviceDescription, setServiceDescription] = useState('');
+  const [skillsInput, setSkillsInput] = useState('');
+  const [hourlyRate, setHourlyRate] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -39,13 +41,22 @@ export const RegisterAgentModal: React.FC<RegisterAgentModalProps> = ({ isOpen, 
       return;
     }
     
+    // Parse skills from comma-separated input
+    const skills = skillsInput
+      .split(',')
+      .map(s => s.trim())
+      .filter(s => s.length > 0);
+    
+    // Parse hourly rate (optional)
+    const hourlyRateNum = hourlyRate.trim() ? parseFloat(hourlyRate) : null;
+    
     setError(null);
     setSuccess(null);
     setIsSubmitting(true);
     
     try {
       if (isLineraEnabled()) {
-        await registerAgentOnChain(name.trim(), serviceDescription.trim());
+        await registerAgentOnChain(name.trim(), serviceDescription.trim(), skills, hourlyRateNum);
         setSuccess('🎉 Agent registered on Linera blockchain!');
       } else {
         setSuccess('Agent registered (mock mode)');
@@ -56,6 +67,8 @@ export const RegisterAgentModal: React.FC<RegisterAgentModalProps> = ({ isOpen, 
       setTimeout(() => {
         setName('');
         setServiceDescription('');
+        setSkillsInput('');
+        setHourlyRate('');
         setSuccess(null);
         onClose();
       }, 2000);
@@ -77,35 +90,35 @@ export const RegisterAgentModal: React.FC<RegisterAgentModalProps> = ({ isOpen, 
   return (
     <div className="fixed inset-0 bg-black/80 flex justify-center items-center z-50 p-4" onClick={onClose}>
       <div 
-        className="bg-mc-obsidian w-full max-w-lg border-4 border-mc-stone shadow-2xl"
+        className="bg-mc-obsidian w-full max-w-lg border-4 border-mc-stone shadow-2xl max-h-[90vh] flex flex-col"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="bg-mc-diamond px-6 py-4 flex justify-between items-center">
-          <h2 className="text-lg text-mc-ui-bg-dark flex items-center gap-3 font-bold">
+        <div className="bg-mc-diamond px-4 py-3 flex justify-between items-center flex-shrink-0">
+          <h2 className="text-sm text-mc-ui-bg-dark flex items-center gap-2 font-bold">
             <RobotIcon />
             Register as Agent
           </h2>
           <button 
             onClick={onClose} 
-            className="text-mc-ui-bg-dark hover:text-white text-xl transition-colors w-8 h-8 flex items-center justify-center bg-mc-diamond-dark border-2 border-mc-ui-bg-dark/30 hover:border-white/50"
+            className="text-mc-ui-bg-dark hover:text-white text-lg transition-colors w-7 h-7 flex items-center justify-center bg-mc-diamond-dark border-2 border-mc-ui-bg-dark/30 hover:border-white/50"
           >
             ✕
           </button>
         </div>
 
         {/* Connection indicator */}
-        <div className={`px-6 py-2 text-[9px] flex items-center gap-2 ${isLineraEnabled() ? 'bg-mc-emerald/20' : 'bg-mc-gold/20'}`}>
+        <div className={`px-4 py-1.5 text-[9px] flex items-center gap-2 flex-shrink-0 ${isLineraEnabled() ? 'bg-mc-emerald/20' : 'bg-mc-gold/20'}`}>
           <span className={`w-2 h-2 rounded-full ${isLineraEnabled() ? 'bg-mc-emerald animate-pulse' : 'bg-mc-gold'}`}></span>
           <span className={isLineraEnabled() ? 'text-mc-emerald' : 'text-mc-gold'}>
             {isLineraEnabled() ? 'Connected to Linera Testnet' : 'Mock Mode (No Blockchain)'}
           </span>
         </div>
         
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6">
+        {/* Scrollable Form */}
+        <form onSubmit={handleSubmit} className="p-4 overflow-y-auto flex-1">
           {/* Info Banner */}
-          <div className="bg-mc-ui-bg-dark border-2 border-mc-stone p-4 mb-6">
+          <div className="bg-mc-ui-bg-dark border-2 border-mc-stone p-3 mb-4">
             <p className="text-mc-text-light text-[10px] leading-relaxed">
               🤖 Register as an agent to bid on jobs and earn emeralds. Your profile will be 
               <span className="text-mc-diamond"> permanently recorded</span> on the Linera blockchain.
@@ -113,8 +126,8 @@ export const RegisterAgentModal: React.FC<RegisterAgentModalProps> = ({ isOpen, 
           </div>
 
           {/* Agent Name Field */}
-          <div className="mb-5">
-            <label htmlFor="agentName" className="block text-mc-text-light text-[10px] uppercase tracking-wider mb-2">
+          <div className="mb-3">
+            <label htmlFor="agentName" className="block text-mc-text-light text-[10px] uppercase tracking-wider mb-1">
               Agent Name
             </label>
             <input
@@ -122,12 +135,12 @@ export const RegisterAgentModal: React.FC<RegisterAgentModalProps> = ({ isOpen, 
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full bg-mc-ui-bg-dark border-4 border-mc-stone focus:border-mc-diamond p-4 text-mc-text-light text-xs focus:outline-none transition-colors placeholder-mc-text-dark"
+              className="w-full bg-mc-ui-bg-dark border-3 border-mc-stone focus:border-mc-diamond p-2.5 text-mc-text-light text-xs focus:outline-none transition-colors placeholder-mc-text-dark"
               placeholder="e.g., CodeBot 5000, DataMiner Pro"
               required
               maxLength={50}
             />
-            <div className="flex justify-between mt-1">
+            <div className="flex justify-between mt-0.5">
               <span className="text-mc-text-dark text-[8px]">Choose a memorable name</span>
               <span className={`text-[8px] ${name.length > 40 ? 'text-mc-gold' : 'text-mc-text-dark'}`}>
                 {name.length}/50
@@ -136,46 +149,91 @@ export const RegisterAgentModal: React.FC<RegisterAgentModalProps> = ({ isOpen, 
           </div>
           
           {/* Service Description Field */}
-          <div className="mb-6">
-            <label htmlFor="serviceDescription" className="block text-mc-text-light text-[10px] uppercase tracking-wider mb-2">
+          <div className="mb-3">
+            <label htmlFor="serviceDescription" className="block text-mc-text-light text-[10px] uppercase tracking-wider mb-1">
               Service Description
             </label>
             <textarea
               id="serviceDescription"
               value={serviceDescription}
               onChange={(e) => setServiceDescription(e.target.value)}
-              className="w-full bg-mc-ui-bg-dark border-4 border-mc-stone focus:border-mc-diamond p-4 text-mc-text-light text-xs focus:outline-none transition-colors placeholder-mc-text-dark"
-              rows={4}
+              className="w-full bg-mc-ui-bg-dark border-3 border-mc-stone focus:border-mc-diamond p-2.5 text-mc-text-light text-xs focus:outline-none transition-colors placeholder-mc-text-dark"
+              rows={3}
               placeholder="Describe your skills and services...&#10;Example: Expert in Rust smart contract development, specializing in DeFi applications. 5+ years experience building on blockchain platforms."
               required
               maxLength={500}
             />
-            <div className="flex justify-between mt-1">
+            <div className="flex justify-between mt-0.5">
               <span className="text-mc-text-dark text-[8px]">Describe your expertise</span>
               <span className={`text-[8px] ${serviceDescription.length > 450 ? 'text-mc-gold' : 'text-mc-text-dark'}`}>
                 {serviceDescription.length}/500
               </span>
             </div>
           </div>
+
+          {/* Skills Field */}
+          <div className="mb-3">
+            <label htmlFor="skills" className="block text-mc-text-light text-[10px] uppercase tracking-wider mb-1">
+              Skills (comma-separated)
+            </label>
+            <input
+              id="skills"
+              type="text"
+              value={skillsInput}
+              onChange={(e) => setSkillsInput(e.target.value)}
+              className="w-full bg-mc-ui-bg-dark border-3 border-mc-stone focus:border-mc-diamond p-2.5 text-mc-text-light text-xs focus:outline-none transition-colors placeholder-mc-text-dark"
+              placeholder="e.g., Rust, Smart Contracts, DeFi, TypeScript"
+              maxLength={200}
+            />
+            <div className="flex justify-between mt-0.5">
+              <span className="text-mc-text-dark text-[8px]">List your key skills</span>
+              <span className="text-mc-text-dark text-[8px]">
+                {skillsInput.split(',').filter(s => s.trim()).length} skills
+              </span>
+            </div>
+          </div>
+
+          {/* Hourly Rate Field */}
+          <div className="mb-4">
+            <label htmlFor="hourlyRate" className="block text-mc-text-light text-[10px] uppercase tracking-wider mb-1">
+              Hourly Rate (Optional)
+            </label>
+            <div className="relative">
+              <input
+                id="hourlyRate"
+                type="number"
+                min="0"
+                step="0.01"
+                value={hourlyRate}
+                onChange={(e) => setHourlyRate(e.target.value)}
+                className="w-full bg-mc-ui-bg-dark border-3 border-mc-stone focus:border-mc-diamond p-2.5 pr-20 text-mc-text-light text-xs focus:outline-none transition-colors placeholder-mc-text-dark"
+                placeholder="0.00"
+              />
+              <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-mc-emerald text-[9px] font-bold">
+                ◈ LINERA
+              </span>
+            </div>
+            <span className="text-mc-text-dark text-[8px]">Your preferred hourly rate</span>
+          </div>
           
           {/* Error Message */}
           {error && (
-            <div className="bg-mc-redstone/20 border-2 border-mc-redstone px-4 py-3 text-[10px] mb-4 flex items-center gap-2">
-              <span className="text-lg">❌</span>
+            <div className="bg-mc-redstone/20 border-2 border-mc-redstone px-3 py-2 text-[10px] mb-3 flex items-center gap-2">
+              <span>❌</span>
               <span className="text-mc-text-light">{error}</span>
             </div>
           )}
           
           {/* Success Message */}
           {success && (
-            <div className="bg-mc-emerald/20 border-2 border-mc-emerald px-4 py-3 text-[10px] mb-4 flex items-center gap-2">
-              <span className="text-lg">✅</span>
+            <div className="bg-mc-emerald/20 border-2 border-mc-emerald px-3 py-2 text-[10px] mb-3 flex items-center gap-2">
+              <span>✅</span>
               <span className="text-mc-text-light">{success}</span>
             </div>
           )}
           
           {/* Blockchain Notice */}
-          <div className="bg-mc-amethyst/10 border-2 border-mc-amethyst/30 p-3 mb-6">
+          <div className="bg-mc-amethyst/10 border-2 border-mc-amethyst/30 p-2 mb-4">
             <p className="text-mc-amethyst text-[9px] flex items-center gap-2">
               <span>⛓️</span>
               {isLineraEnabled() 
@@ -189,18 +247,18 @@ export const RegisterAgentModal: React.FC<RegisterAgentModalProps> = ({ isOpen, 
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 bg-mc-stone text-mc-text-light py-3 px-4 border-4 border-t-mc-ui-border-light border-l-mc-ui-border-light border-b-mc-ui-border-dark border-r-mc-ui-border-dark text-[10px] uppercase tracking-wider hover:brightness-110 transition-all"
+              className="flex-1 bg-mc-stone text-mc-text-light py-2.5 px-3 border-3 border-t-mc-ui-border-light border-l-mc-ui-border-light border-b-mc-ui-border-dark border-r-mc-ui-border-dark text-[10px] uppercase tracking-wider hover:brightness-110 transition-all"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="flex-1 bg-mc-diamond text-mc-ui-bg-dark py-3 px-4 border-4 border-t-mc-ui-border-light border-l-mc-ui-border-light border-b-mc-diamond-dark border-r-mc-diamond-dark text-[10px] uppercase tracking-wider font-bold hover:brightness-110 transition-all disabled:bg-mc-stone disabled:text-mc-text-dark disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="flex-1 bg-mc-diamond text-mc-ui-bg-dark py-2.5 px-3 border-3 border-t-mc-ui-border-light border-l-mc-ui-border-light border-b-mc-diamond-dark border-r-mc-diamond-dark text-[10px] uppercase tracking-wider font-bold hover:brightness-110 transition-all disabled:bg-mc-stone disabled:text-mc-text-dark disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {isSubmitting ? (
                 <>
-                  <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                  <svg className="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>

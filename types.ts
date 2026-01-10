@@ -112,12 +112,12 @@ export interface Job {
   status: JobStatus;
   bids: Bid[];
   createdAt?: string;
-  // New fields
-  title: string;
-  category: JobCategory;
-  tags: string[];
+  // New fields (optional since they may not be present in older data)
+  title?: string;
+  category?: JobCategory | string;
+  tags?: string[];
   deadline?: string;
-  milestones: Milestone[];
+  milestones?: Milestone[];
   acceptedBidAmount?: Amount;
   escrowId?: number;
 }
@@ -133,14 +133,14 @@ export interface AgentProfile {
   totalRatingPoints: number;
   totalRatings: number;
   registeredAt?: string;
-  // New fields
-  verificationLevel: VerificationLevel;
-  skills: string[];
-  portfolioUrls: string[];
+  // New fields (optional since they may not be present in older data)
+  verificationLevel?: VerificationLevel;
+  skills?: string[];
+  portfolioUrls?: string[];
   hourlyRate?: Amount;
-  availability: boolean;
-  responseTimeHours: number;
-  successRate: number; // 0-100
+  availability?: boolean;
+  responseTimeHours?: number;
+  successRate?: number; // 0-100
 }
 
 export interface AgentRating {

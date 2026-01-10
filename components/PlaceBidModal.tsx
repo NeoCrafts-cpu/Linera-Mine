@@ -19,17 +19,39 @@ export const PlaceBidModal: React.FC<PlaceBidModalProps> = ({ job, onClose, onBi
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [bidAmount, setBidAmount] = useState(job.payment.toString());
+  const [proposal, setProposal] = useState('');
+  const [estimatedDays, setEstimatedDays] = useState('7');
 
   const currentUser = getCurrentUserAddress();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    
+    const amount = parseFloat(bidAmount);
+    const days = parseInt(estimatedDays);
+    
+    if (isNaN(amount) || amount <= 0) {
+      setError('Please enter a valid bid amount');
+      return;
+    }
+    
+    if (!proposal.trim()) {
+      setError('Please provide a proposal explaining your approach');
+      return;
+    }
+    
+    if (isNaN(days) || days < 1) {
+      setError('Please enter a valid number of days');
+      return;
+    }
+    
     setIsSubmitting(true);
 
     try {
       if (isLineraEnabled()) {
-        await placeBidOnChain(job.id);
+        await placeBidOnChain(job.id, amount, proposal.trim(), days);
       } else {
         // Mock bid for demo mode
         await placeBid(job.id);
@@ -54,9 +76,9 @@ export const PlaceBidModal: React.FC<PlaceBidModalProps> = ({ job, onClose, onBi
 
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-      <div className="bg-mc-ui-bg-dark border-4 border-mc-stone w-full max-w-lg relative animate-fadeIn">
+      <div className="bg-mc-ui-bg-dark border-4 border-mc-stone w-full max-w-lg relative animate-fadeIn max-h-[90vh] flex flex-col">
         {/* Header */}
-        <div className="bg-mc-diamond px-6 py-4 flex justify-between items-center">
+        <div className="bg-mc-diamond px-4 py-3 flex justify-between items-center flex-shrink-0">
           <h2 className="text-white text-sm font-bold flex items-center gap-2" style={{textShadow: '2px 2px #1B1B2F'}}>
             <span>💬</span> Place Your Bid
           </h2>
@@ -82,9 +104,9 @@ export const PlaceBidModal: React.FC<PlaceBidModalProps> = ({ job, onClose, onBi
             </p>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="p-6">
+          <form onSubmit={handleSubmit} className="p-4 overflow-y-auto flex-1">
             {/* Job Info */}
-            <div className="bg-mc-stone/30 p-4 border-2 border-mc-stone mb-6">
+            <div className="bg-mc-stone/30 p-3 border-2 border-mc-stone mb-4">
               <div className="flex items-center gap-2 mb-2">
                 <span className="text-mc-text-dark text-[9px] bg-mc-stone px-2 py-1 rounded-sm">
                   JOB #{job.id}
@@ -94,40 +116,92 @@ export const PlaceBidModal: React.FC<PlaceBidModalProps> = ({ job, onClose, onBi
                 {job.description}
               </p>
               <div className="flex items-center gap-2">
-                <span className="text-mc-text-dark text-[10px]">Payment:</span>
+                <span className="text-mc-text-dark text-[10px]">Client Budget:</span>
                 <span className="text-mc-emerald text-sm font-bold">💎 {job.payment.toLocaleString()}</span>
+              </div>
+            </div>
+
+            {/* Bid Amount Field */}
+            <div className="mb-3">
+              <label className="block text-mc-text-light text-[10px] uppercase tracking-wider mb-1">
+                Your Bid Amount
+              </label>
+              <div className="relative">
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={bidAmount}
+                  onChange={(e) => setBidAmount(e.target.value)}
+                  className="w-full bg-mc-ui-bg-dark border-3 border-mc-stone focus:border-mc-diamond p-2.5 pr-20 text-mc-text-light text-xs focus:outline-none transition-colors"
+                  placeholder="Enter your bid"
+                  required
+                />
+                <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-mc-emerald text-[9px] font-bold">
+                  💎 LINERA
+                </span>
+              </div>
+            </div>
+
+            {/* Estimated Days Field */}
+            <div className="mb-3">
+              <label className="block text-mc-text-light text-[10px] uppercase tracking-wider mb-1">
+                Estimated Days to Complete
+              </label>
+              <input
+                type="number"
+                min="1"
+                value={estimatedDays}
+                onChange={(e) => setEstimatedDays(e.target.value)}
+                className="w-full bg-mc-ui-bg-dark border-3 border-mc-stone focus:border-mc-diamond p-2.5 text-mc-text-light text-xs focus:outline-none transition-colors"
+                placeholder="Number of days"
+                required
+              />
+            </div>
+
+            {/* Proposal Field */}
+            <div className="mb-4">
+              <label className="block text-mc-text-light text-[10px] uppercase tracking-wider mb-1">
+                Your Proposal
+              </label>
+              <textarea
+                value={proposal}
+                onChange={(e) => setProposal(e.target.value)}
+                rows={3}
+                className="w-full bg-mc-ui-bg-dark border-3 border-mc-stone focus:border-mc-diamond p-2.5 text-mc-text-light text-xs focus:outline-none transition-colors placeholder-mc-text-dark"
+                placeholder="Explain your approach and why you're the best fit..."
+                required
+                maxLength={1000}
+              />
+              <div className="flex justify-end mt-1">
+                <span className={`text-[8px] ${proposal.length > 900 ? 'text-mc-gold' : 'text-mc-text-dark'}`}>
+                  {proposal.length}/1000
+                </span>
               </div>
             </div>
 
             {/* Already bid warning */}
             {hasAlreadyBid && (
-              <div className="bg-mc-gold/20 border-2 border-mc-gold p-4 mb-6">
-                <div className="flex items-center gap-3">
-                  <span className="text-2xl">⚠️</span>
-                  <div>
-                    <p className="text-mc-gold text-xs font-bold">Already Bidding</p>
-                    <p className="text-mc-text-dark text-[10px]">
-                      You have already placed a bid on this job.
-                    </p>
-                  </div>
+              <div className="bg-mc-gold/20 border-2 border-mc-gold p-2 mb-3">
+                <div className="flex items-center gap-2">
+                  <span>⚠️</span>
+                  <p className="text-mc-gold text-[10px]">You have already placed a bid on this job.</p>
                 </div>
               </div>
             )}
 
             {/* Info about bidding */}
-            <div className="bg-mc-stone/20 p-4 border-2 border-mc-stone mb-6">
-              <h4 className="text-mc-text-light text-xs font-bold mb-2">📋 What happens next?</h4>
-              <ul className="text-mc-text-dark text-[10px] space-y-1">
-                <li>• Your bid will be recorded on the Linera blockchain</li>
-                <li>• The job client will see your agent profile</li>
+            <div className="bg-mc-stone/20 p-2 border-2 border-mc-stone mb-3">
+              <h4 className="text-mc-text-light text-[10px] font-bold mb-1">📋 What happens next?</h4>
+              <ul className="text-mc-text-dark text-[9px] space-y-0.5">
+                <li>• Your bid will be recorded on the blockchain</li>
                 <li>• If selected, the job status changes to "In Progress"</li>
-                <li>• Complete the job to receive payment</li>
               </ul>
             </div>
 
             {/* Error message */}
             {error && (
-              <div className="bg-mc-redstone/20 border-2 border-mc-redstone p-3 mb-6">
+              <div className="bg-mc-redstone/20 border-2 border-mc-redstone p-2 mb-3">
                 <p className="text-mc-redstone text-[10px] flex items-center gap-2">
                   <span>❌</span> {error}
                 </p>
@@ -140,14 +214,14 @@ export const PlaceBidModal: React.FC<PlaceBidModalProps> = ({ job, onClose, onBi
                 type="button"
                 onClick={onClose}
                 disabled={isSubmitting}
-                className="flex-1 bg-mc-stone text-mc-text-light py-3 px-4 border-4 border-t-mc-ui-border-light border-l-mc-ui-border-light border-b-mc-ui-border-dark border-r-mc-ui-border-dark text-[10px] uppercase tracking-wider disabled:opacity-50 hover:brightness-110 transition-all"
+                className="flex-1 bg-mc-stone text-mc-text-light py-2.5 px-3 border-3 border-t-mc-ui-border-light border-l-mc-ui-border-light border-b-mc-ui-border-dark border-r-mc-ui-border-dark text-[10px] uppercase tracking-wider disabled:opacity-50 hover:brightness-110 transition-all"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={isSubmitting || hasAlreadyBid}
-                className="flex-1 bg-mc-diamond text-white py-3 px-4 border-4 border-t-mc-ui-border-light border-l-mc-ui-border-light border-b-blue-800 border-r-blue-800 text-[10px] uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed hover:brightness-110 transition-all flex items-center justify-center gap-2"
+                className="flex-1 bg-mc-diamond text-white py-2.5 px-3 border-3 border-t-mc-ui-border-light border-l-mc-ui-border-light border-b-blue-800 border-r-blue-800 text-[10px] uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed hover:brightness-110 transition-all flex items-center justify-center gap-2"
               >
                 {isSubmitting ? (
                   <>

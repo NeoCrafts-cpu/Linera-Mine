@@ -15,7 +15,7 @@ import * as Linera from './linera';
 const USE_LINERA = import.meta.env.VITE_USE_LINERA === 'true';
 const CHAIN_ID = import.meta.env.VITE_LINERA_CHAIN_ID || '';
 const APP_ID = import.meta.env.VITE_LINERA_APP_ID || '';
-const LINERA_PORT = import.meta.env.VITE_LINERA_PORT || '8080';
+const LINERA_PORT = import.meta.env.VITE_LINERA_PORT || '8081';
 const LINERA_GRAPHQL_URL = import.meta.env.VITE_LINERA_GRAPHQL_URL || `http://localhost:${LINERA_PORT}`;
 
 console.log('🔗 Linera Integration:', {
@@ -110,148 +110,106 @@ export function getCurrentUserAddress(): Owner | null {
   return null;
 }
 
-// MOCK DATA - This would be fetched from the Linera blockchain via GraphQL
-const MOCK_OWNERS: Owner[] = [
-  '0x' + 'a'.repeat(64) as Owner,
-  '0x' + 'b'.repeat(64) as Owner,
-  '0x' + 'c'.repeat(64) as Owner,
-  '0x' + 'd'.repeat(64) as Owner,
-  '0x' + 'e'.repeat(64) as Owner,
-  '0x' + 'f'.repeat(64) as Owner,
-];
+// ==================== LINERA-ONLY MODE ====================
+// All data comes from the Linera blockchain - no mock data
 
-let MOCK_AGENTS: AgentProfile[] = [
-  { owner: MOCK_OWNERS[1], name: 'CodeBot 5000', serviceDescription: 'Expert in Rust smart contract auditing.', jobsCompleted: 42, totalRatingPoints: 205, totalRatings: 42, rating: 4.9, verified: true },
-  { owner: MOCK_OWNERS[2], name: 'Artisan AI', serviceDescription: 'Generates stunning digital art from prompts.', jobsCompleted: 120, totalRatingPoints: 588, totalRatings: 120, rating: 4.9, verified: true },
-  { owner: MOCK_OWNERS[3], name: 'DataCruncher', serviceDescription: 'Provides deep data analysis and market insights.', jobsCompleted: 75, totalRatingPoints: 360, totalRatings: 75, rating: 4.8, verified: false },
-  { owner: MOCK_OWNERS[4], name: 'TranslateSphere', serviceDescription: 'Fast and accurate multilingual translation services.', jobsCompleted: 210, totalRatingPoints: 1000, totalRatings: 210, rating: 4.7, verified: true },
-];
+/**
+ * Check if Linera integration is enabled
+ */
+export function isLineraEnabled(): boolean {
+  return USE_LINERA && !!CHAIN_ID && !!APP_ID;
+}
 
-let MOCK_JOBS: Job[] = [
-  {
-    id: 1,
-    client: MOCK_OWNERS[0],
-    description: 'Audit a new DeFi lending protocol smart contract for security vulnerabilities.',
-    payment: 5000,
-    status: JobStatus.Posted,
-    bids: [
-      { agent: MOCK_AGENTS[0], bidId: 101 },
-    ],
-  },
-  {
-    id: 2,
-    client: MOCK_OWNERS[5],
-    description: 'Create a series of 10 sci-fi themed illustrations for a new book cover.',
-    payment: 2500,
-    status: JobStatus.Posted,
-    bids: [
-      { agent: MOCK_AGENTS[1], bidId: 102 },
-      { agent: MOCK_AGENTS[3], bidId: 103 },
-    ],
-  },
-  {
-    id: 3,
-    client: MOCK_OWNERS[0],
-    description: 'Analyze user engagement data for our mobile app and provide a detailed report.',
-    payment: 3000,
-    status: JobStatus.InProgress,
-    agent: MOCK_AGENTS[2].owner,
-    bids: [{ agent: MOCK_AGENTS[2], bidId: 104 }],
-  },
-    {
-    id: 4,
-    client: MOCK_OWNERS[5],
-    description: 'Translate our company website from English to Japanese and Spanish.',
-    payment: 1800,
-    status: JobStatus.Completed,
-    agent: MOCK_AGENTS[3].owner,
-    bids: [],
-  },
-];
-// --- END MOCK DATA ---
+/**
+ * Get the GraphQL endpoint for the Linera application
+ */
+function getGraphQLEndpoint(): string {
+  return `${LINERA_GRAPHQL_URL}/chains/${CHAIN_ID}/applications/${APP_ID}`;
+}
 
-const SIMULATED_LATENCY = 800; // in ms
-
-const simulateApiCall = <T,>(data: T): Promise<T> => {
-  return new Promise(resolve => {
-    setTimeout(() => {
-      // Handle undefined gracefully
-      if (data === undefined) {
-        resolve(undefined as T);
-      } else {
-        resolve(JSON.parse(JSON.stringify(data))); // Deep copy to prevent mutation
-      }
-    }, SIMULATED_LATENCY);
+/**
+ * Execute a GraphQL query against the Linera application
+ */
+async function executeGraphQL(query: string, variables: Record<string, unknown> = {}): Promise<any> {
+  const endpoint = getGraphQLEndpoint();
+  
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ query, variables }),
   });
-};
 
-// In a real app, this would use @apollo/client to send GraphQL queries.
-export const getAgents = (): Promise<AgentProfile[]> => simulateApiCall(MOCK_AGENTS);
-export const getJobs = (): Promise<Job[]> => simulateApiCall(MOCK_JOBS);
-export const getJobById = (id: number): Promise<Job | undefined> => simulateApiCall(MOCK_JOBS.find(job => job.id === id));
+  if (!response.ok) {
+    throw new Error(`GraphQL request failed: ${response.statusText}`);
+  }
 
-// Simulates a user posting a job to their microchain.
-export const postJob = (description: string, payment: number): Promise<Job> => {
-  const newJob: Job = {
-    id: MOCK_JOBS.length + 1,
-    client: MOCK_OWNERS[0], // Assume current user is the first owner
-    description,
-    payment,
-    status: JobStatus.Posted,
-    bids: [],
-  };
-  MOCK_JOBS.unshift(newJob);
-  return simulateApiCall(newJob);
-};
+  const result = await response.json();
+  
+  if (result.errors && result.errors.length > 0) {
+    throw new Error(result.errors[0].message);
+  }
 
-// Simulates a user accepting a bid.
-export const acceptJob = (jobId: number, agentOwner: Owner): Promise<Job> => {
-    const jobIndex = MOCK_JOBS.findIndex(j => j.id === jobId);
-    if(jobIndex !== -1) {
-        MOCK_JOBS[jobIndex].status = JobStatus.InProgress;
-        MOCK_JOBS[jobIndex].agent = agentOwner;
-    }
-    return simulateApiCall(MOCK_JOBS[jobIndex]);
+  return result.data;
 }
 
-// Simulates placing a bid on a job (mock mode)
-export const placeBid = (jobId: number): Promise<Job> => {
-    const jobIndex = MOCK_JOBS.findIndex(j => j.id === jobId);
-    if (jobIndex === -1) {
-        return Promise.reject(new Error('Job not found'));
-    }
-    
-    const job = MOCK_JOBS[jobIndex];
-    if (job.status !== JobStatus.Posted) {
-        return Promise.reject(new Error('Job is not available for bidding'));
-    }
-    
-    // Get current user (or use a mock agent)
-    const bidderAddress = currentWalletAuth?.address || MOCK_OWNERS[1];
-    const bidderAgent = MOCK_AGENTS.find(a => a.owner === bidderAddress) || MOCK_AGENTS[0];
-    
-    // Check if already bid
-    const existingBid = job.bids.find(b => {
-        const bidAgent = typeof b.agent === 'string' ? b.agent : b.agent?.owner;
-        return bidAgent === bidderAddress;
-    });
-    
-    if (existingBid) {
-        return Promise.reject(new Error('You have already bid on this job'));
-    }
-    
-    // Add new bid
-    const newBid: Bid = {
-        agent: bidderAgent,
-        bidId: Date.now(),
-        timestamp: new Date().toISOString(),
-    };
-    
-    MOCK_JOBS[jobIndex].bids.push(newBid);
-    console.log('✅ Mock bid placed:', newBid);
-    
-    return simulateApiCall(MOCK_JOBS[jobIndex]);
+// ==================== QUERY FUNCTIONS ====================
+
+/**
+ * Get all agents from the blockchain
+ */
+export async function getAgents(): Promise<AgentProfile[]> {
+  if (!isLineraEnabled()) {
+    console.warn('Linera not enabled - returning empty agent list');
+    return [];
+  }
+  return getAgentsFromChain();
 }
+
+/**
+ * Get all jobs from the blockchain
+ */
+export async function getJobs(): Promise<Job[]> {
+  if (!isLineraEnabled()) {
+    console.warn('Linera not enabled - returning empty job list');
+    return [];
+  }
+  return getJobsFromChain();
+}
+
+/**
+ * Get a specific job by ID from the blockchain
+ */
+export async function getJobById(id: number): Promise<Job | undefined> {
+  if (!isLineraEnabled()) {
+    console.warn('Linera not enabled - job not found');
+    return undefined;
+  }
+  return getJobFromChain(id);
+}
+
+// Legacy mock functions - now redirect to blockchain
+export const postJob = async (description: string, payment: number, title: string = 'New Job', category: string = 'Other', tags: string[] = []): Promise<Job> => {
+  return postJobOnChain(title, description, payment, category, tags, []);
+};
+
+export const acceptJob = async (jobId: number, agentOwner: Owner): Promise<Job> => {
+  // Need to get the bid amount from the job
+  const job = await getJobById(jobId);
+  const bid = job?.bids.find(b => {
+    const bidAgent = typeof b.agent === 'string' ? b.agent : (b.agent as AgentProfile)?.owner;
+    return bidAgent === agentOwner;
+  });
+  const bidAmount = bid?.amount || job?.payment || 0;
+  await acceptBidOnChain(jobId, agentOwner, typeof bidAmount === 'number' ? bidAmount : parseFloat(bidAmount as string));
+  return getJobById(jobId) as Promise<Job>;
+};
+
+export const placeBid = async (jobId: number): Promise<Job> => {
+  // This should not be called directly - use placeBidOnChain with proper params
+  throw new Error('placeBid requires amount, proposal, and estimatedDays. Use placeBidOnChain instead.');
+};
 
 // ==================== LINERA BLOCKCHAIN FUNCTIONS ====================
 
@@ -311,28 +269,85 @@ export async function executeApplicationMutation(mutation: string, variables?: R
  * Register as an agent on the blockchain
  * Uses the application's GraphQL mutation
  */
-export async function registerAgentOnChain(name: string, serviceDescription: string): Promise<any> {
+export async function registerAgentOnChain(
+  name: string, 
+  serviceDescription: string,
+  skills: string[] = [],
+  hourlyRate: number | null = null
+): Promise<any> {
   const mutation = `
-    mutation RegisterAgent($name: String!, $serviceDescription: String!) {
-      registerAgent(name: $name, serviceDescription: $serviceDescription)
+    mutation RegisterAgent(
+      $name: String!, 
+      $serviceDescription: String!,
+      $skills: [String!]!,
+      $hourlyRate: String
+    ) {
+      registerAgent(
+        name: $name, 
+        serviceDescription: $serviceDescription,
+        skills: $skills,
+        hourlyRate: $hourlyRate
+      )
     }
   `;
-  return executeApplicationMutation(mutation, { name, serviceDescription });
+  return executeApplicationMutation(mutation, { 
+    name, 
+    serviceDescription,
+    skills,
+    hourlyRate: hourlyRate ? hourlyRate.toString() : null
+  });
 }
 
 /**
  * Post a job on the blockchain
  * Uses the application's GraphQL mutation
  */
-export async function postJobOnChain(description: string, payment: number): Promise<any> {
+export async function postJobOnChain(
+  title: string,
+  description: string, 
+  payment: number,
+  category: string = 'OTHER',
+  tags: string[] = [],
+  milestones: { title: string; description: string; paymentPercentage: number }[] = []
+): Promise<any> {
   const mutation = `
-    mutation PostJob($description: String!, $payment: String!) {
-      postJob(description: $description, payment: $payment)
+    mutation PostJob(
+      $title: String!, 
+      $description: String!, 
+      $payment: String!,
+      $category: JobCategory!,
+      $tags: [String!]!,
+      $deadline: Int,
+      $milestones: [MilestoneInput!]!
+    ) {
+      postJob(
+        title: $title,
+        description: $description, 
+        payment: $payment,
+        category: $category,
+        tags: $tags,
+        deadline: $deadline,
+        milestones: $milestones
+      )
     }
   `;
+  
+  // Convert milestones to the expected format
+  const milestoneInputs = milestones.map(m => ({
+    title: m.title,
+    description: m.description,
+    paymentPercentage: m.paymentPercentage,
+    dueDays: null
+  }));
+  
   return executeApplicationMutation(mutation, { 
+    title,
     description, 
-    payment: payment.toString() 
+    payment: payment.toString(),
+    category: category.toUpperCase().replace(/ /g, '_'),
+    tags,
+    deadline: null,
+    milestones: milestoneInputs
   });
 }
 
@@ -340,26 +355,46 @@ export async function postJobOnChain(description: string, payment: number): Prom
  * Place a bid on a job
  * Uses the application's GraphQL mutation
  */
-export async function placeBidOnChain(jobId: number): Promise<any> {
+export async function placeBidOnChain(
+  jobId: number,
+  amount: number,
+  proposal: string,
+  estimatedDays: number
+): Promise<any> {
   const mutation = `
-    mutation PlaceBid($jobId: Int!) {
-      placeBid(jobId: $jobId)
+    mutation PlaceBid(
+      $jobId: Int!, 
+      $amount: String!,
+      $proposal: String!,
+      $estimatedDays: Int!
+    ) {
+      placeBid(
+        jobId: $jobId,
+        amount: $amount,
+        proposal: $proposal,
+        estimatedDays: $estimatedDays
+      )
     }
   `;
-  return executeApplicationMutation(mutation, { jobId });
+  return executeApplicationMutation(mutation, { 
+    jobId, 
+    amount: amount.toString(),
+    proposal,
+    estimatedDays
+  });
 }
 
 /**
  * Accept a bid (client accepts an agent's bid)
  * Uses the application's GraphQL mutation
  */
-export async function acceptBidOnChain(jobId: number, agent: Owner): Promise<any> {
+export async function acceptBidOnChain(jobId: number, agent: Owner, bidAmount: number): Promise<any> {
   const mutation = `
-    mutation AcceptBid($jobId: Int!, $agent: String!) {
-      acceptBid(jobId: $jobId, agent: $agent)
+    mutation AcceptBid($jobId: Int!, $agent: String!, $bidAmount: String!) {
+      acceptBid(jobId: $jobId, agent: $agent, bidAmount: $bidAmount)
     }
   `;
-  return executeApplicationMutation(mutation, { jobId, agent });
+  return executeApplicationMutation(mutation, { jobId, agent, bidAmount: bidAmount.toString() });
 }
 
 /**
@@ -373,13 +408,6 @@ export async function completeJobOnChain(jobId: number): Promise<any> {
     }
   `;
   return executeApplicationMutation(mutation, { jobId });
-}
-
-/**
- * Check if Linera is enabled and configured
- */
-export function isLineraEnabled(): boolean {
-  return USE_LINERA && !!CHAIN_ID && !!APP_ID;
 }
 
 /**
@@ -444,14 +472,31 @@ export async function getJobsFromChain(): Promise<Job[]> {
       jobs {
         id
         client
+        title
         description
         payment
         status
         agent
+        category
+        tags
+        deadline
+        milestones {
+          id
+          title
+          description
+          paymentPercentage
+          status
+          dueDate
+        }
+        acceptedBidAmount
+        escrowId
         bids {
           agent
           bidId
           timestamp
+          amount
+          proposal
+          estimatedDays
         }
         createdAt
       }
@@ -465,7 +510,15 @@ export async function getJobsFromChain(): Promise<Job[]> {
       ...job,
       status: normalizeJobStatus(job.status),
       payment: typeof job.payment === 'string' ? parseFloat(job.payment) : (job.payment || 0),
-      id: typeof job.id === 'string' ? parseInt(job.id, 10) : job.id
+      id: typeof job.id === 'string' ? parseInt(job.id, 10) : job.id,
+      bids: (job.bids || []).map((bid: any) => ({
+        ...bid,
+        bidId: typeof bid.bidId === 'string' ? parseInt(bid.bidId, 10) : bid.bidId,
+        amount: typeof bid.amount === 'string' ? parseFloat(bid.amount) : (bid.amount || 0),
+        estimatedDays: typeof bid.estimatedDays === 'string' ? parseInt(bid.estimatedDays, 10) : (bid.estimatedDays || 0),
+      })),
+      milestones: job.milestones || [],
+      tags: job.tags || [],
     }));
     return jobs;
   } catch (error) {
@@ -486,6 +539,15 @@ export async function getAgentsFromChain(): Promise<AgentProfile[]> {
         serviceDescription
         jobsCompleted
         totalRatingPoints
+        totalRatings
+        registeredAt
+        verificationLevel
+        skills
+        portfolioUrls
+        hourlyRate
+        availability
+        responseTimeHours
+        successRate
       }
     }
   `;
@@ -494,7 +556,9 @@ export async function getAgentsFromChain(): Promise<AgentProfile[]> {
     const data = await executeApplicationQuery(query);
     return (data.agents || []).map((agent: any) => ({
       ...agent,
-      rating: agent.jobsCompleted > 0 ? agent.totalRatingPoints / agent.jobsCompleted : 0,
+      rating: agent.totalRatings > 0 ? agent.totalRatingPoints / agent.totalRatings : 0,
+      hourlyRate: agent.hourlyRate ? parseFloat(agent.hourlyRate) : null,
+      skills: agent.skills || [],
     }));
   } catch (error) {
     console.error('Failed to fetch agents from chain:', error);
@@ -511,14 +575,31 @@ export async function getJobFromChain(id: number): Promise<Job | undefined> {
       job(id: $id) {
         id
         client
+        title
         description
         payment
         status
         agent
+        category
+        tags
+        deadline
+        milestones {
+          id
+          title
+          description
+          paymentPercentage
+          status
+          dueDate
+        }
+        acceptedBidAmount
+        escrowId
         bids {
           agent
           bidId
           timestamp
+          amount
+          proposal
+          estimatedDays
         }
         createdAt
       }
@@ -527,7 +608,23 @@ export async function getJobFromChain(id: number): Promise<Job | undefined> {
   
   try {
     const data = await executeApplicationQuery(query, { id });
-    return data.job || undefined;
+    if (!data.job) return undefined;
+    
+    const job = data.job;
+    return {
+      ...job,
+      status: normalizeJobStatus(job.status),
+      payment: typeof job.payment === 'string' ? parseFloat(job.payment) : (job.payment || 0),
+      id: typeof job.id === 'string' ? parseInt(job.id, 10) : job.id,
+      bids: (job.bids || []).map((bid: any) => ({
+        ...bid,
+        bidId: typeof bid.bidId === 'string' ? parseInt(bid.bidId, 10) : bid.bidId,
+        amount: typeof bid.amount === 'string' ? parseFloat(bid.amount) : (bid.amount || 0),
+        estimatedDays: typeof bid.estimatedDays === 'string' ? parseInt(bid.estimatedDays, 10) : (bid.estimatedDays || 0),
+      })),
+      milestones: job.milestones || [],
+      tags: job.tags || [],
+    };
   } catch (error) {
     console.error('Failed to fetch job from chain:', error);
     return undefined;
@@ -544,36 +641,7 @@ export async function getJobsFiltered(
   limit?: number,
   offset?: number
 ): Promise<Job[]> {
-  if (!USE_LINERA) {
-    // Apply filters to mock data
-    let jobs = [...MOCK_JOBS];
-    
-    if (filter?.status) {
-      jobs = jobs.filter(j => j.status === filter.status);
-    }
-    if (filter?.minPayment) {
-      jobs = jobs.filter(j => j.payment >= filter.minPayment!);
-    }
-    if (filter?.maxPayment) {
-      jobs = jobs.filter(j => j.payment <= filter.maxPayment!);
-    }
-    
-    // Sort
-    if (sortBy === 'Payment') {
-      jobs.sort((a, b) => sortDir === 'Desc' ? b.payment - a.payment : a.payment - b.payment);
-    } else if (sortBy === 'Id') {
-      jobs.sort((a, b) => sortDir === 'Desc' ? b.id - a.id : a.id - b.id);
-    }
-    
-    // Pagination
-    const start = offset || 0;
-    const end = limit ? start + limit : undefined;
-    
-    return simulateApiCall(jobs.slice(start, end));
-  }
-
-  // For Linera, fetch all jobs and filter client-side
-  // (The deployed contract doesn't have advanced filtering types)
+  // Fetch all jobs from chain and filter client-side
   try {
     const allJobs = await getJobsFromChain();
     let jobs = [...allJobs];
@@ -584,15 +652,27 @@ export async function getJobsFiltered(
       jobs = jobs.filter(j => String(j.status).toUpperCase() === filterStatus);
     }
     if (filter?.minPayment) {
-      jobs = jobs.filter(j => j.payment >= filter.minPayment!);
+      const minPay = typeof filter.minPayment === 'number' ? filter.minPayment : parseFloat(filter.minPayment);
+      jobs = jobs.filter(j => {
+        const pay = typeof j.payment === 'number' ? j.payment : parseFloat(j.payment as any);
+        return pay >= minPay;
+      });
     }
     if (filter?.maxPayment) {
-      jobs = jobs.filter(j => j.payment <= filter.maxPayment!);
+      const maxPay = typeof filter.maxPayment === 'number' ? filter.maxPayment : parseFloat(filter.maxPayment);
+      jobs = jobs.filter(j => {
+        const pay = typeof j.payment === 'number' ? j.payment : parseFloat(j.payment as any);
+        return pay <= maxPay;
+      });
     }
     
     // Apply sorting client-side
     if (sortBy === 'Payment') {
-      jobs.sort((a, b) => sortDir === 'Desc' ? b.payment - a.payment : a.payment - b.payment);
+      jobs.sort((a, b) => {
+        const payA = typeof a.payment === 'number' ? a.payment : parseFloat(a.payment as any);
+        const payB = typeof b.payment === 'number' ? b.payment : parseFloat(b.payment as any);
+        return sortDir === 'Desc' ? payB - payA : payA - payB;
+      });
     } else if (sortBy === 'Id') {
       jobs.sort((a, b) => sortDir === 'Desc' ? b.id - a.id : a.id - b.id);
     } else {
@@ -621,29 +701,7 @@ export async function getAgentsFiltered(
   limit?: number,
   offset?: number
 ): Promise<AgentProfile[]> {
-  if (!USE_LINERA) {
-    let agents = [...MOCK_AGENTS];
-    
-    if (filter?.minJobsCompleted) {
-      agents = agents.filter(a => a.jobsCompleted >= filter.minJobsCompleted!);
-    }
-    if (filter?.minRating) {
-      agents = agents.filter(a => a.rating >= filter.minRating!);
-    }
-    
-    if (sortBy === 'JobsCompleted') {
-      agents.sort((a, b) => sortDir === 'Desc' ? b.jobsCompleted - a.jobsCompleted : a.jobsCompleted - b.jobsCompleted);
-    } else if (sortBy === 'Rating') {
-      agents.sort((a, b) => sortDir === 'Desc' ? b.rating - a.rating : a.rating - b.rating);
-    }
-    
-    const start = offset || 0;
-    const end = limit ? start + limit : undefined;
-    
-    return simulateApiCall(agents.slice(start, end));
-  }
-
-  // For Linera, fetch all agents and filter client-side
+  // Fetch all agents from chain and filter client-side
   // (The deployed contract doesn't have advanced filtering types)
   try {
     const allAgents = await getAgentsFromChain();
@@ -679,18 +737,7 @@ export async function getAgentsFiltered(
  * Get marketplace statistics
  */
 export async function getMarketplaceStats(): Promise<MarketplaceStats> {
-  if (!USE_LINERA) {
-    return simulateApiCall({
-      totalJobs: MOCK_JOBS.length,
-      postedJobs: MOCK_JOBS.filter(j => j.status === JobStatus.Posted).length,
-      inProgressJobs: MOCK_JOBS.filter(j => j.status === JobStatus.InProgress).length,
-      completedJobs: MOCK_JOBS.filter(j => j.status === JobStatus.Completed).length,
-      totalAgents: MOCK_AGENTS.length,
-      totalPaymentVolume: MOCK_JOBS.reduce((sum, j) => sum + j.payment, 0).toString(),
-    });
-  }
-
-  // Calculate stats client-side from fetched data
+  // Calculate stats from blockchain data
   try {
     const [jobs, agents] = await Promise.all([
       getJobsFromChain(),
@@ -699,13 +746,25 @@ export async function getMarketplaceStats(): Promise<MarketplaceStats> {
     
     const statusStr = (j: Job) => String(j.status).toUpperCase();
     
+    const totalBids = jobs.reduce((sum, j) => sum + (j.bids?.length || 0), 0);
+    const disputedJobs = jobs.filter(j => statusStr(j) === 'DISPUTED').length;
+    const verifiedAgents = agents.filter(a => a.verificationLevel && a.verificationLevel !== VerificationLevel.Unverified).length;
+    
     return {
       totalJobs: jobs.length,
       postedJobs: jobs.filter(j => statusStr(j) === 'POSTED').length,
       inProgressJobs: jobs.filter(j => statusStr(j) === 'INPROGRESS' || statusStr(j) === 'IN_PROGRESS').length,
       completedJobs: jobs.filter(j => statusStr(j) === 'COMPLETED').length,
+      disputedJobs,
       totalAgents: agents.length,
-      totalPaymentVolume: jobs.reduce((sum, j) => sum + j.payment, 0).toString(),
+      verifiedAgents,
+      totalBids,
+      openDisputes: disputedJobs, // Same as disputed jobs for now
+      avgBidsPerJob: jobs.length > 0 ? totalBids / jobs.length : 0,
+      totalPaymentVolume: jobs.reduce((sum, j) => {
+        const pay = typeof j.payment === 'number' ? j.payment : parseFloat(j.payment as any) || 0;
+        return sum + pay;
+      }, 0).toString(),
     };
   } catch (error) {
     console.error('Failed to fetch stats:', error);
@@ -714,7 +773,12 @@ export async function getMarketplaceStats(): Promise<MarketplaceStats> {
       postedJobs: 0,
       inProgressJobs: 0,
       completedJobs: 0,
+      disputedJobs: 0,
       totalAgents: 0,
+      verifiedAgents: 0,
+      totalBids: 0,
+      openDisputes: 0,
+      avgBidsPerJob: 0,
       totalPaymentVolume: '0',
     };
   }
@@ -768,12 +832,6 @@ export async function rateAgentOnChain(jobId: number, rating: number, review: st
 
   // Always save locally first as backup
   saveLocalRating(ratingObj);
-
-  // If Linera is not enabled, just use local storage
-  if (!USE_LINERA) {
-    console.log('Mock: Rating agent for job', jobId, 'with rating', rating);
-    return simulateApiCall({ success: true, jobId, rating, review });
-  }
 
   try {
     const mutation = `
@@ -836,10 +894,6 @@ export async function getAgentRatings(agentOwner: Owner): Promise<AgentRating[]>
     return true; // Return all for now, filter in component
   });
 
-  if (!USE_LINERA) {
-    return simulateApiCall(localRatings);
-  }
-
   // Try blockchain first
   const query = `
     query GetAgentRatings($agentOwner: String!) {
@@ -889,7 +943,7 @@ export function subscribeToJobs(
     if (!isActive) return;
     
     try {
-      const jobs = USE_LINERA ? await getJobsFromChain() : MOCK_JOBS;
+      const jobs = await getJobsFromChain();
       callback(jobs);
     } catch (error) {
       console.error('Job subscription error:', error);
@@ -923,7 +977,7 @@ export function subscribeToJob(
     if (!isActive) return;
     
     try {
-      const job = USE_LINERA ? await getJobFromChain(jobId) : MOCK_JOBS.find(j => j.id === jobId);
+      const job = await getJobFromChain(jobId);
       callback(job);
     } catch (error) {
       console.error('Job subscription error:', error);
@@ -956,7 +1010,7 @@ export function subscribeToAgents(
     if (!isActive) return;
     
     try {
-      const agents = USE_LINERA ? await getAgentsFromChain() : MOCK_AGENTS;
+      const agents = await getAgentsFromChain();
       callback(agents);
     } catch (error) {
       console.error('Agent subscription error:', error);
@@ -1015,32 +1069,6 @@ export function subscribeToStats(
  * Post a job with enhanced features (v2.0)
  */
 export async function postJobEnhanced(input: PostJobInput): Promise<any> {
-  if (!USE_LINERA) {
-    // Mock implementation
-    const newJob: Job = {
-      id: MOCK_JOBS.length + 1,
-      client: (currentWalletAuth?.address || MOCK_OWNERS[0]) as Owner,
-      title: input.title,
-      description: input.description,
-      payment: typeof input.payment === 'string' ? parseFloat(input.payment) : input.payment,
-      status: JobStatus.Posted,
-      bids: [],
-      category: input.category,
-      tags: input.tags,
-      deadline: input.deadline ? new Date(input.deadline * 1000).toISOString() : undefined,
-      milestones: input.milestones.map((m, i) => ({
-        id: i,
-        title: m.title,
-        description: m.description,
-        paymentPercentage: m.paymentPercentage,
-        status: MilestoneStatus.Pending,
-        dueDate: m.dueDays ? new Date(Date.now() + m.dueDays * 24 * 60 * 60 * 1000).toISOString() : undefined,
-      })),
-    };
-    MOCK_JOBS.unshift(newJob);
-    return simulateApiCall(newJob);
-  }
-
   const mutation = `
     mutation PostJob(
       $title: String!,
@@ -1077,22 +1105,6 @@ export async function postJobEnhanced(input: PostJobInput): Promise<any> {
  * Place a bid with amount and proposal (v2.0)
  */
 export async function placeBidEnhanced(input: PlaceBidInput): Promise<any> {
-  if (!USE_LINERA) {
-    const jobIndex = MOCK_JOBS.findIndex(j => j.id === input.jobId);
-    if (jobIndex === -1) throw new Error('Job not found');
-    
-    const bid: Bid = {
-      agent: currentWalletAuth?.address || MOCK_OWNERS[1],
-      bidId: Date.now(),
-      timestamp: new Date().toISOString(),
-      amount: input.amount,
-      proposal: input.proposal,
-      estimatedDays: input.estimatedDays,
-    };
-    MOCK_JOBS[jobIndex].bids.push(bid);
-    return simulateApiCall(MOCK_JOBS[jobIndex]);
-  }
-
   const mutation = `
     mutation PlaceBid($jobId: Int!, $amount: String!, $proposal: String!, $estimatedDays: Int!) {
       placeBid(jobId: $jobId, amount: $amount, proposal: $proposal, estimatedDays: $estimatedDays)
@@ -1110,16 +1122,6 @@ export async function placeBidEnhanced(input: PlaceBidInput): Promise<any> {
  * Accept a bid with amount (v2.0)
  */
 export async function acceptBidEnhanced(jobId: number, agent: Owner, bidAmount: number | string): Promise<any> {
-  if (!USE_LINERA) {
-    const jobIndex = MOCK_JOBS.findIndex(j => j.id === jobId);
-    if (jobIndex !== -1) {
-      MOCK_JOBS[jobIndex].status = JobStatus.InProgress;
-      MOCK_JOBS[jobIndex].agent = agent;
-      MOCK_JOBS[jobIndex].acceptedBidAmount = bidAmount;
-    }
-    return simulateApiCall(MOCK_JOBS[jobIndex]);
-  }
-
   const mutation = `
     mutation AcceptBid($jobId: Int!, $agent: String!, $bidAmount: String!) {
       acceptBid(jobId: $jobId, agent: $agent, bidAmount: $bidAmount)
@@ -1136,27 +1138,6 @@ export async function acceptBidEnhanced(jobId: number, agent: Owner, bidAmount: 
  * Register agent with enhanced profile (v2.0)
  */
 export async function registerAgentEnhanced(input: RegisterAgentInput): Promise<any> {
-  if (!USE_LINERA) {
-    const newAgent: AgentProfile = {
-      owner: (currentWalletAuth?.address || ('0x' + 'x'.repeat(64))) as Owner,
-      name: input.name,
-      serviceDescription: input.serviceDescription,
-      jobsCompleted: 0,
-      totalRatingPoints: 0,
-      totalRatings: 0,
-      rating: 0,
-      verificationLevel: VerificationLevel.Unverified,
-      skills: input.skills,
-      portfolioUrls: [],
-      hourlyRate: input.hourlyRate,
-      availability: true,
-      responseTimeHours: 24,
-      successRate: 100,
-    };
-    MOCK_AGENTS.push(newAgent);
-    return simulateApiCall(newAgent);
-  }
-
   const mutation = `
     mutation RegisterAgent($name: String!, $serviceDescription: String!, $skills: [String!]!, $hourlyRate: String) {
       registerAgent(name: $name, serviceDescription: $serviceDescription, skills: $skills, hourlyRate: $hourlyRate)
