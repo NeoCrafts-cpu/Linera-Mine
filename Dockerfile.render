@@ -1,0 +1,81 @@
+# ===================================
+# Linera Node Service for Render
+# ===================================
+# This Dockerfile builds a production-ready Linera node
+# that serves the GraphQL API for the job-marketplace contract
+
+FROM rust:1.86-slim AS builder
+
+SHELL ["bash", "-c"]
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    pkg-config \
+    protobuf-compiler \
+    clang \
+    make \
+    curl \
+    git \
+    libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Linera tools (matching SDK version 0.15.8)
+RUN cargo install --locked linera-service@0.15.8 linera-storage-service@0.15.8
+
+# Add wasm target for contract compilation
+RUN rustup target add wasm32-unknown-unknown
+
+WORKDIR /build
+
+# Copy contract source
+COPY linera-contracts/job-marketplace /build/contract
+
+# Build the contract
+WORKDIR /build/contract
+RUN cargo build --release --target wasm32-unknown-unknown
+
+# ===================================
+# Production Stage
+# ===================================
+FROM debian:bookworm-slim
+
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    curl \
+    libssl3 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy Linera binaries from builder
+COPY --from=builder /usr/local/cargo/bin/linera /usr/local/bin/
+COPY --from=builder /usr/local/cargo/bin/linera-service /usr/local/bin/
+COPY --from=builder /usr/local/cargo/bin/linera-storage-service /usr/local/bin/
+
+# Copy compiled WASM contracts
+COPY --from=builder /build/contract/target/wasm32-unknown-unknown/release/*.wasm /contracts/
+
+# Copy startup script
+COPY deploy/start-linera-node.sh /start.sh
+RUN chmod +x /start.sh
+
+# Create data directory
+RUN mkdir -p /data
+
+# Expose ports
+# 8081 - GraphQL API
+EXPOSE 8081
+
+# Health check endpoint
+HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=3 \
+    CMD curl -sf http://localhost:8081/health || exit 1
+
+# Set working directory
+WORKDIR /data
+
+# Environment variables
+ENV LINERA_PORT=8081
+ENV RUST_LOG=info
+ENV DATA_DIR=/data
+
+# Start the node
+ENTRYPOINT ["/start.sh"]

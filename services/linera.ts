@@ -6,29 +6,44 @@ const CHAIN_ID = import.meta.env.VITE_LINERA_CHAIN_ID || '';
 const APP_ID = import.meta.env.VITE_LINERA_APP_ID || '';
 const PORT = import.meta.env.VITE_LINERA_PORT || '8081';
 
+// Detect if we're in production (Render/Vercel) or local development
+const isProduction = GRAPHQL_URL.startsWith('https://') || 
+                     (typeof window !== 'undefined' && window.location.protocol === 'https:');
+
 // Build the base URL for the Linera service
 const getBaseUrl = () => {
-  // If GRAPHQL_URL already contains the full path, use it directly
+  // If GRAPHQL_URL already contains the full path, extract base
   if (GRAPHQL_URL.includes('/chains/')) {
+    return GRAPHQL_URL.split('/chains/')[0];
+  }
+  // If it's a full URL (production), use it
+  if (GRAPHQL_URL.startsWith('http')) {
     return GRAPHQL_URL;
   }
-  // Otherwise, construct the URL
+  // Otherwise, construct localhost URL
   return `http://localhost:${PORT}`;
 };
 
 // Build the application-specific URL
 const getAppUrl = () => {
+  // If GRAPHQL_URL already contains the full path, use it directly
   if (GRAPHQL_URL.includes('/chains/')) {
     return GRAPHQL_URL;
   }
+  // Construct the full app URL
   if (CHAIN_ID && APP_ID) {
-    return `${getBaseUrl()}/chains/${CHAIN_ID}/applications/${APP_ID}`;
+    const base = getBaseUrl();
+    return `${base}/chains/${CHAIN_ID}/applications/${APP_ID}`;
   }
   return GRAPHQL_URL;
 };
 
 // Get the node service URL (without application path)
 const getNodeServiceUrl = () => {
+  // In production, use the configured URL
+  if (isProduction) {
+    return getBaseUrl();
+  }
   return `http://localhost:${PORT}`;
 };
 

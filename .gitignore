@@ -38,3 +38,8 @@ Cargo.lock
 *.zip
 *.tar.gz
 test-*.sh
+
+# Linera runtime files
+nohup.out
+/tmp/linera*
+*.sqlite
