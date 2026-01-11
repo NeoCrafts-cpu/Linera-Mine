@@ -9,6 +9,7 @@ set -e
 
 echo "=== Linera Node Service ==="
 echo "Starting at $(date)"
+echo "Linera version: $(linera --version 2>&1 || echo 'unknown')"
 echo ""
 
 # Configuration
@@ -17,9 +18,6 @@ DATA_DIR=${DATA_DIR:-/data}
 WALLET_DIR="$DATA_DIR/wallet"
 CONTRACTS_DIR="/contracts"
 FAUCET_URL=${FAUCET_URL:-"https://faucet.conway.linera.net"}
-
-# Check for testnet mode
-USE_TESTNET=${USE_TESTNET:-true}
 
 mkdir -p "$WALLET_DIR"
 
@@ -41,26 +39,44 @@ echo "1. Checking wallet..."
 if wallet_exists; then
     echo "   Wallet found at $WALLET_DIR"
 else
-    echo "   Initializing new wallet..."
-    linera wallet init --faucet "$FAUCET_URL"
+    echo "   Initializing new wallet from faucet: $FAUCET_URL"
+    linera wallet init --faucet "$FAUCET_URL" || {
+        echo "   ERROR: Failed to initialize wallet"
+        exit 1
+    }
     echo "   Wallet initialized!"
 fi
 
 echo ""
 echo "2. Checking chain..."
-# Get or request a chain
-if ! linera wallet show 2>/dev/null | grep -q "Chain"; then
-    echo "   Requesting chain from faucet..."
-    linera wallet request-chain --faucet "$FAUCET_URL" > /tmp/chain_info.txt 2>&1
-    CHAIN_ID=$(head -1 /tmp/chain_info.txt)
-    echo "   Chain obtained: $CHAIN_ID"
+# Get chain ID from wallet
+CHAIN_ID=""
+if linera wallet show 2>/dev/null | grep -q "Chain ID"; then
+    CHAIN_ID=$(linera wallet show 2>/dev/null | grep "Chain ID:" | head -1 | awk '{print $3}')
+fi
+
+if [ -z "$CHAIN_ID" ]; then
+    echo "   Requesting new chain from faucet..."
+    linera wallet request-chain --faucet "$FAUCET_URL" > /tmp/chain_info.txt 2>&1 || {
+        echo "   ERROR: Failed to request chain"
+        cat /tmp/chain_info.txt
+        exit 1
+    }
+    # Extract chain ID (64 hex chars)
+    CHAIN_ID=$(grep -oE '[a-f0-9]{64}' /tmp/chain_info.txt | head -1)
+    echo "   New chain obtained: $CHAIN_ID"
 else
-    CHAIN_ID=$(linera wallet show 2>/dev/null | grep -E "^[a-f0-9]{64}" | head -1)
     echo "   Using existing chain: $CHAIN_ID"
+fi
+
+if [ -z "$CHAIN_ID" ]; then
+    echo "   ERROR: Could not determine chain ID"
+    exit 1
 fi
 
 echo ""
 echo "3. Checking application deployment..."
+APP_ID=""
 if app_deployed; then
     echo "   Loading existing deployment..."
     source "$DATA_DIR/deployment.env"
@@ -74,17 +90,28 @@ else
     
     if [ ! -f "$CONTRACT_WASM" ] || [ ! -f "$SERVICE_WASM" ]; then
         echo "   ERROR: Contract WASM files not found!"
-        echo "   Looking for: $CONTRACT_WASM"
-        echo "   Looking for: $SERVICE_WASM"
         ls -la "$CONTRACTS_DIR" || true
         exit 1
     fi
     
-    # Deploy the application
-    APP_ID=$(linera publish-and-create \
+    echo "   Publishing and creating application..."
+    DEPLOY_OUTPUT=$(linera publish-and-create \
         "$CONTRACT_WASM" \
         "$SERVICE_WASM" \
-        --json-argument "null" 2>&1 | tail -1)
+        --json-argument "null" 2>&1) || {
+        echo "   ERROR: Deployment failed"
+        echo "$DEPLOY_OUTPUT"
+        exit 1
+    }
+    
+    # Extract App ID (64 hex chars from last line)
+    APP_ID=$(echo "$DEPLOY_OUTPUT" | grep -oE '[a-f0-9]{64}' | tail -1)
+    
+    if [ -z "$APP_ID" ]; then
+        echo "   ERROR: Could not extract App ID"
+        echo "$DEPLOY_OUTPUT"
+        exit 1
+    fi
     
     echo "   Application deployed!"
     echo "   App ID: $APP_ID"
@@ -98,16 +125,19 @@ EOF
 fi
 
 echo ""
+echo "============================================"
+echo "=== DEPLOYMENT INFO (SAVE THESE VALUES) ==="
+echo "============================================"
+echo ""
+echo "CHAIN_ID=$CHAIN_ID"
+echo "APP_ID=$APP_ID"
+echo ""
+echo "GraphQL Endpoint:"
+echo "  https://YOUR_RENDER_URL/chains/$CHAIN_ID/applications/$APP_ID"
+echo ""
+echo "============================================"
+echo ""
 echo "4. Starting GraphQL service on port $LINERA_PORT..."
-echo ""
-echo "=== Service Info ==="
-echo "Chain ID: $CHAIN_ID"
-echo "App ID:   $APP_ID"
-echo "GraphQL:  http://0.0.0.0:$LINERA_PORT"
-echo "Endpoint: http://0.0.0.0:$LINERA_PORT/chains/$CHAIN_ID/applications/$APP_ID"
-echo "==================="
-echo ""
 
 # Start the GraphQL service
-# The --listen-address makes it accessible externally
 exec linera service --port "$LINERA_PORT" --listen-address 0.0.0.0
