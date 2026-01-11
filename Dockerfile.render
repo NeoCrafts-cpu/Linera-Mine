@@ -5,12 +5,17 @@
 
 FROM rust:1.86-slim-bookworm AS builder
 
-# Install build dependencies including protobuf with well-known types
+# Install build dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     pkg-config \
     libssl-dev \
     protobuf-compiler \
     libprotobuf-dev \
+    libclang-dev \
+    clang \
+    cmake \
+    make \
+    g++ \
     && rm -rf /var/lib/apt/lists/*
 
 # Install linera-service 0.15.8 (current testnet version)
