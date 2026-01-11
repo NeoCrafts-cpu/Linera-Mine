@@ -1,42 +1,9 @@
 # ===================================
 # Linera Node Service for Render
 # ===================================
-# This Dockerfile builds a production-ready Linera node
-# that serves the GraphQL API for the job-marketplace contract
+# Optimized Dockerfile - uses pre-built binaries and contracts
+# to avoid expensive Rust compilation on Render
 
-FROM rust:1.86-slim AS builder
-
-SHELL ["bash", "-c"]
-
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    pkg-config \
-    protobuf-compiler \
-    clang \
-    make \
-    curl \
-    git \
-    libssl-dev \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install Linera tools (matching SDK version 0.15.8)
-RUN cargo install --locked linera-service@0.15.8 linera-storage-service@0.15.8
-
-# Add wasm target for contract compilation
-RUN rustup target add wasm32-unknown-unknown
-
-WORKDIR /build
-
-# Copy contract source
-COPY linera-contracts/job-marketplace /build/contract
-
-# Build the contract
-WORKDIR /build/contract
-RUN cargo build --release --target wasm32-unknown-unknown
-
-# ===================================
-# Production Stage
-# ===================================
 FROM debian:bookworm-slim
 
 # Install runtime dependencies
@@ -44,37 +11,48 @@ RUN apt-get update && apt-get install -y \
     ca-certificates \
     curl \
     libssl3 \
+    wget \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy Linera binaries from builder
-# Note: linera-service crate installs the 'linera' binary (linera service is a subcommand)
-COPY --from=builder /usr/local/cargo/bin/linera /usr/local/bin/
+# Download pre-built Linera CLI from GitHub releases
+# Version 0.15.8 matching our SDK
+ENV LINERA_VERSION=v0.15.8
+RUN set -eux; \
+    ARCH=$(uname -m); \
+    case "$ARCH" in \
+        x86_64) ARCH_NAME="x86_64-unknown-linux-gnu" ;; \
+        aarch64) ARCH_NAME="aarch64-unknown-linux-gnu" ;; \
+        *) echo "Unsupported architecture: $ARCH"; exit 1 ;; \
+    esac; \
+    wget -q "https://github.com/linera-io/linera-protocol/releases/download/${LINERA_VERSION}/linera-${LINERA_VERSION}-${ARCH_NAME}.tar.gz" -O /tmp/linera.tar.gz || \
+    wget -q "https://github.com/linera-io/linera-protocol/releases/download/v0.15.6/linera-v0.15.6-${ARCH_NAME}.tar.gz" -O /tmp/linera.tar.gz; \
+    tar -xzf /tmp/linera.tar.gz -C /usr/local/bin/; \
+    rm /tmp/linera.tar.gz; \
+    chmod +x /usr/local/bin/linera*; \
+    linera --version || true
 
-# Copy compiled WASM contracts
-COPY --from=builder /build/contract/target/wasm32-unknown-unknown/release/*.wasm /contracts/
+# Create directories
+RUN mkdir -p /contracts /data
+
+# Copy pre-built WASM contracts from repository
+COPY contracts/job-marketplace-contract.wasm /contracts/
+COPY contracts/job-marketplace-service.wasm /contracts/
 
 # Copy startup script
 COPY deploy/start-linera-node.sh /start.sh
 RUN chmod +x /start.sh
 
-# Create data directory
-RUN mkdir -p /data
-
 # Expose ports
-# 8081 - GraphQL API
 EXPOSE 8081
 
-# Health check endpoint
-HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=3 \
-    CMD curl -sf http://localhost:8081/health || exit 1
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=180s --retries=5 \
+    CMD curl -sf http://localhost:8081/ || exit 1
 
-# Set working directory
 WORKDIR /data
 
-# Environment variables
 ENV LINERA_PORT=8081
 ENV RUST_LOG=info
 ENV DATA_DIR=/data
 
-# Start the node
 ENTRYPOINT ["/start.sh"]

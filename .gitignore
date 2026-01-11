@@ -29,9 +29,18 @@ dist-ssr
 *.sln
 *.sw?
 
-# Rust/Cargo
-linera-contracts/job-marketplace/target/
-*.wasm
+# Rust/Cargo - ignore most build artifacts but keep pre-built WASM for deployment
+linera-contracts/job-marketplace/target/debug/
+linera-contracts/job-marketplace/target/release/
+linera-contracts/job-marketplace/target/wasm32-unknown-unknown/debug/
+linera-contracts/job-marketplace/target/wasm32-unknown-unknown/release/deps/
+linera-contracts/job-marketplace/target/wasm32-unknown-unknown/release/build/
+linera-contracts/job-marketplace/target/wasm32-unknown-unknown/release/incremental/
+linera-contracts/job-marketplace/target/wasm32-unknown-unknown/release/.fingerprint/
+linera-contracts/job-marketplace/target/.rustc_info.json
+linera-contracts/job-marketplace/target/CACHEDIR.TAG
+# Keep the compiled WASM contracts for Render deployment
+!linera-contracts/job-marketplace/target/wasm32-unknown-unknown/release/*.wasm
 Cargo.lock
 
 # Temporary files
