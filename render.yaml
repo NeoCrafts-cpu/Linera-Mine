@@ -1,24 +1,22 @@
-# Render Blueprint for Linera Node Service
-# This deploys the Linera node that serves the GraphQL API for the smart contract
+# Render Blueprint for Linera Backend Service
+# This deploys a Node.js backend that wraps the Linera CLI
 
 services:
-  # Linera Node Service - runs the blockchain node and GraphQL API
+  # Linera Backend - Node.js server with Linera CLI
   - type: web
-    name: linera-node
+    name: linera-backend
     runtime: docker
-    dockerfilePath: ./Dockerfile.render
+    dockerfilePath: ./backend/Dockerfile
     dockerContext: .
-    plan: standard  # Needs more resources for blockchain node
+    plan: standard  # Needs resources for Rust compilation
     healthCheckPath: /health
     envVars:
-      - key: RUST_LOG
-        value: info
-      - key: LINERA_PORT
+      - key: NODE_ENV
+        value: production
+      - key: PORT
         value: 8081
-      - key: CHAIN_ID
-        sync: false  # Will be set after deployment
-      - key: APP_ID
-        sync: false  # Will be set after deployment
+      - key: FAUCET_URL
+        value: https://faucet.testnet-conway.linera.net
     disk:
       name: linera-data
       mountPath: /data
