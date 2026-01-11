@@ -1,11 +1,9 @@
 # ===================================
 # Linera Backend for Render
 # ===================================
-# Two-stage build:
-# 1. Build Linera CLI from source (cached)
-# 2. Run Node.js backend with Linera CLI
+# Multi-stage build - Rust compilation is cached after first build
 
-# Stage 1: Build Linera CLI
+# Stage 1: Build Linera CLI (CACHED after first successful build)
 FROM rust:1.86-slim-bookworm AS linera-builder
 
 # Install ALL build dependencies
@@ -19,10 +17,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     cmake \
     make \
     g++ \
-    curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Build linera CLI
+# Build linera CLI - this layer gets CACHED
 ENV CARGO_PROFILE_RELEASE_LTO=thin
 ENV CARGO_PROFILE_RELEASE_CODEGEN_UNITS=16
 RUN cargo install --locked linera-service@0.15.8
