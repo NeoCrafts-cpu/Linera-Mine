@@ -1,40 +1,42 @@
 # ===================================
 # Linera Node Service for Render
 # ===================================
-# Optimized Dockerfile - uses pre-built binaries and contracts
-# to avoid expensive Rust compilation on Render
+# Uses Rust to compile Linera CLI, then runs the service
 
+FROM rust:1.82-slim-bookworm AS builder
+
+# Install minimal dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    pkg-config \
+    libssl-dev \
+    protobuf-compiler \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install only linera-service (which provides the linera binary)
+# Use release profile optimized for size
+ENV CARGO_PROFILE_RELEASE_LTO=thin
+ENV CARGO_PROFILE_RELEASE_CODEGEN_UNITS=16
+RUN cargo install --locked linera-service@0.15.6
+
+# ===================================
+# Production Stage
+# ===================================
 FROM debian:bookworm-slim
 
 # Install runtime dependencies
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     curl \
     libssl3 \
-    wget \
     && rm -rf /var/lib/apt/lists/*
 
-# Download pre-built Linera CLI from GitHub releases
-# Version 0.15.8 matching our SDK
-ENV LINERA_VERSION=v0.15.8
-RUN set -eux; \
-    ARCH=$(uname -m); \
-    case "$ARCH" in \
-        x86_64) ARCH_NAME="x86_64-unknown-linux-gnu" ;; \
-        aarch64) ARCH_NAME="aarch64-unknown-linux-gnu" ;; \
-        *) echo "Unsupported architecture: $ARCH"; exit 1 ;; \
-    esac; \
-    wget -q "https://github.com/linera-io/linera-protocol/releases/download/${LINERA_VERSION}/linera-${LINERA_VERSION}-${ARCH_NAME}.tar.gz" -O /tmp/linera.tar.gz || \
-    wget -q "https://github.com/linera-io/linera-protocol/releases/download/v0.15.6/linera-v0.15.6-${ARCH_NAME}.tar.gz" -O /tmp/linera.tar.gz; \
-    tar -xzf /tmp/linera.tar.gz -C /usr/local/bin/; \
-    rm /tmp/linera.tar.gz; \
-    chmod +x /usr/local/bin/linera*; \
-    linera --version || true
+# Copy Linera binary from builder
+COPY --from=builder /usr/local/cargo/bin/linera /usr/local/bin/
 
 # Create directories
 RUN mkdir -p /contracts /data
 
-# Copy pre-built WASM contracts from repository
+# Copy pre-built WASM contracts
 COPY contracts/job-marketplace-contract.wasm /contracts/
 COPY contracts/job-marketplace-service.wasm /contracts/
 
@@ -42,11 +44,11 @@ COPY contracts/job-marketplace-service.wasm /contracts/
 COPY deploy/start-linera-node.sh /start.sh
 RUN chmod +x /start.sh
 
-# Expose ports
+# Expose port
 EXPOSE 8081
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=180s --retries=5 \
+HEALTHCHECK --interval=60s --timeout=30s --start-period=300s --retries=3 \
     CMD curl -sf http://localhost:8081/ || exit 1
 
 WORKDIR /data
