@@ -9,20 +9,69 @@ import {
   Milestone, MilestoneStatus, EscrowStatus
 } from '../types';
 import * as Linera from './linera';
+import * as Faucet from './faucet';
+import * as LocalStore from './localStorage';
 
 // Toggle between mock data and Linera blockchain
 // Set VITE_USE_LINERA=true in .env.local to enable Linera integration
 const USE_LINERA = import.meta.env.VITE_USE_LINERA === 'true';
 const CHAIN_ID = import.meta.env.VITE_LINERA_CHAIN_ID || '';
 const APP_ID = import.meta.env.VITE_LINERA_APP_ID || '';
-const   LINERA_PORT = import.meta.env.VITE_LINERA_PORT || '8081';
+const LINERA_PORT = import.meta.env.VITE_LINERA_PORT || '8081';
 const LINERA_GRAPHQL_URL = import.meta.env.VITE_LINERA_GRAPHQL_URL || `http://localhost:${LINERA_PORT}`;
+
+// App mode: 'demo' uses localStorage, 'live' uses blockchain
+let appMode: LocalStore.AppMode = LocalStore.getAppMode();
 
 console.log('🔗 Linera Integration:', {
   enabled: USE_LINERA,
+  mode: appMode,
   chainId: CHAIN_ID ? `${CHAIN_ID.substring(0, 16)}...` : 'Not set',
   appId: APP_ID ? `${APP_ID.substring(0, 16)}...` : 'Not set',
 });
+
+// ==================== APP MODE ====================
+
+export function getAppMode(): LocalStore.AppMode {
+  return appMode;
+}
+
+export function setAppMode(mode: LocalStore.AppMode): void {
+  appMode = mode;
+  LocalStore.setAppMode(mode);
+  console.log(`🔄 App mode changed to: ${mode}`);
+}
+
+/**
+ * Check if blockchain is available and switch modes accordingly
+ */
+export async function checkAndSetMode(): Promise<LocalStore.AppMode> {
+  if (!USE_LINERA || !CHAIN_ID || !APP_ID) {
+    setAppMode('demo');
+    return 'demo';
+  }
+  
+  try {
+    // Try to connect to the linera service
+    const endpoint = getApplicationEndpoint();
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query: '{ __typename }' }),
+    });
+    
+    if (response.ok) {
+      setAppMode('live');
+      console.log('✅ Connected to Linera blockchain - LIVE mode');
+      return 'live';
+    }
+  } catch (error) {
+    console.warn('⚠️ Linera service not available, using demo mode');
+  }
+  
+  setAppMode('demo');
+  return 'demo';
+}
 
 // Wallet authentication state
 let currentWalletAuth: WalletAuth | null = null;
@@ -30,45 +79,61 @@ let currentWalletAuth: WalletAuth | null = null;
 // ==================== WALLET AUTHENTICATION ====================
 
 /**
- * Connect to Linera wallet and authenticate
+ * Connect to Linera wallet using the faucet
+ * This creates a new chain for the user if they don't have one
  */
 export async function connectWallet(): Promise<WalletAuth> {
-  if (!USE_LINERA) {
-    // Mock authentication for development
-    const mockAuth: WalletAuth = {
-      address: ('0x' + 'a'.repeat(64)) as Owner,
-      chainId: 'mock-chain',
-      isAuthenticated: true,
-    };
-    currentWalletAuth = mockAuth;
-    return mockAuth;
-  }
-
   try {
-    const isAvailable = await Linera.checkLineraConnection();
-    if (!isAvailable) {
-      throw new Error('Linera service not available');
+    // First, check if we have a stored wallet
+    let wallet = Faucet.loadWallet();
+    
+    if (!wallet || !wallet.chainId) {
+      // Check if faucet is available
+      const faucetAvailable = await Faucet.checkFaucetConnection();
+      
+      if (faucetAvailable) {
+        // Create new wallet with chain from faucet
+        console.log('🔑 Creating new wallet via faucet...');
+        wallet = await Faucet.createWalletWithChain();
+      } else {
+        // Fallback to demo mode
+        console.log('⚠️ Faucet not available, using demo wallet');
+        wallet = {
+          publicKey: 'demo_' + Math.random().toString(36).substring(7),
+          privateKey: 'demo_private',
+          chainId: 'demo-chain-' + Date.now(),
+          createdAt: Date.now(),
+        };
+        Faucet.saveWallet(wallet);
+      }
     }
-
-    const address = await Linera.getLineraWalletAddress();
-    const chainId = Linera.getChainId();
-
-    if (!address || !chainId) {
-      throw new Error('Failed to get wallet address or chain ID');
-    }
-
+    
     const auth: WalletAuth = {
-      address: address as Owner,
-      chainId,
+      address: wallet.publicKey as Owner,
+      chainId: wallet.chainId || 'unknown',
       isAuthenticated: true,
     };
 
     currentWalletAuth = auth;
     console.log('✅ Wallet connected:', auth.address.substring(0, 16) + '...');
+    console.log('🔗 User chain:', auth.chainId.substring(0, 16) + '...');
+    
+    // Check what mode we should be in
+    await checkAndSetMode();
+    
     return auth;
   } catch (error) {
     console.error('❌ Wallet connection failed:', error);
-    throw error;
+    
+    // Fallback to demo wallet on any error
+    const demoAuth: WalletAuth = {
+      address: ('0x' + 'demo'.repeat(16)) as Owner,
+      chainId: 'demo-chain',
+      isAuthenticated: true,
+    };
+    currentWalletAuth = demoAuth;
+    setAppMode('demo');
+    return demoAuth;
   }
 }
 
@@ -157,44 +222,108 @@ async function executeGraphQL(query: string, variables: Record<string, unknown> 
 // ==================== QUERY FUNCTIONS ====================
 
 /**
- * Get all agents from the blockchain
+ * Get all agents - uses blockchain in live mode, localStorage in demo mode
  */
 export async function getAgents(): Promise<AgentProfile[]> {
-  if (!isLineraEnabled()) {
-    console.warn('Linera not enabled - returning empty agent list');
-    return [];
+  if (appMode === 'demo') {
+    console.log('📦 Fetching agents from localStorage (demo mode)');
+    return LocalStore.getLocalAgents();
   }
-  return getAgentsFromChain();
+  
+  if (!isLineraEnabled()) {
+    console.warn('Linera not enabled - returning local agents');
+    return LocalStore.getLocalAgents();
+  }
+  
+  try {
+    return await getAgentsFromChain();
+  } catch (error) {
+    console.warn('⚠️ Failed to fetch from chain, falling back to local:', error);
+    return LocalStore.getLocalAgents();
+  }
 }
 
 /**
- * Get all jobs from the blockchain
+ * Get all jobs - uses blockchain in live mode, localStorage in demo mode
  */
 export async function getJobs(): Promise<Job[]> {
-  if (!isLineraEnabled()) {
-    console.warn('Linera not enabled - returning empty job list');
-    return [];
+  if (appMode === 'demo') {
+    console.log('📦 Fetching jobs from localStorage (demo mode)');
+    return LocalStore.getLocalJobs();
   }
-  return getJobsFromChain();
+  
+  if (!isLineraEnabled()) {
+    console.warn('Linera not enabled - returning local jobs');
+    return LocalStore.getLocalJobs();
+  }
+  
+  try {
+    return await getJobsFromChain();
+  } catch (error) {
+    console.warn('⚠️ Failed to fetch from chain, falling back to local:', error);
+    return LocalStore.getLocalJobs();
+  }
 }
 
 /**
- * Get a specific job by ID from the blockchain
+ * Get a specific job by ID - uses blockchain in live mode, localStorage in demo mode
  */
 export async function getJobById(id: number): Promise<Job | undefined> {
-  if (!isLineraEnabled()) {
-    console.warn('Linera not enabled - job not found');
-    return undefined;
+  if (appMode === 'demo') {
+    return LocalStore.getLocalJobById(id);
   }
-  return getJobFromChain(id);
+  
+  if (!isLineraEnabled()) {
+    return LocalStore.getLocalJobById(id);
+  }
+  
+  try {
+    return await getJobFromChain(id);
+  } catch (error) {
+    console.warn('⚠️ Failed to fetch from chain, falling back to local:', error);
+    return LocalStore.getLocalJobById(id);
+  }
 }
 
-// Legacy mock functions - now redirect to blockchain
+// Legacy postJob function - now uses demo mode or chain based on appMode
 export const postJob = async (description: string, payment: number, title: string = 'New Job', category: string = 'Other', tags: string[] = []): Promise<Job> => {
+  if (appMode === 'demo') {
+    // Store in localStorage for demo mode
+    const client = getCurrentUserAddress() || ('0x' + 'demo'.repeat(16)) as Owner;
+    return LocalStore.addLocalJob({
+      client,
+      title,
+      description,
+      payment,
+      status: 'open' as JobStatus,
+      category,
+      tags,
+      milestones: [],
+    });
+  }
   return postJobOnChain(title, description, payment, category, tags, []);
 };
 
 export const acceptJob = async (jobId: number, agentOwner: Owner): Promise<Job> => {
+  if (appMode === 'demo') {
+    // Update in localStorage for demo mode
+    const job = LocalStore.getLocalJobById(jobId);
+    if (!job) throw new Error('Job not found');
+    
+    const bid = job.bids?.find(b => {
+      const bidAgent = typeof b.agent === 'string' ? b.agent : (b.agent as AgentProfile)?.owner;
+      return bidAgent === agentOwner;
+    });
+    
+    const updatedJob = LocalStore.updateLocalJob(jobId, {
+      status: 'assigned' as JobStatus,
+      agent: agentOwner,
+      acceptedBidAmount: bid?.amount || job.payment,
+    });
+    
+    return updatedJob!;
+  }
+  
   // Need to get the bid amount from the job
   const job = await getJobById(jobId);
   const bid = job?.bids.find(b => {
@@ -266,8 +395,7 @@ export async function executeApplicationMutation(mutation: string, variables?: R
 }
 
 /**
- * Register as an agent on the blockchain
- * Uses the application's GraphQL mutation
+ * Register as an agent - uses localStorage in demo mode, blockchain in live mode
  */
 export async function registerAgentOnChain(
   name: string, 
@@ -275,6 +403,29 @@ export async function registerAgentOnChain(
   skills: string[] = [],
   hourlyRate: number | null = null
 ): Promise<any> {
+  // Demo mode: store in localStorage
+  if (appMode === 'demo') {
+    const owner = getCurrentUserAddress() || ('0x' + 'user'.repeat(16)) as Owner;
+    const agent: AgentProfile = {
+      owner,
+      name,
+      serviceDescription,
+      skills,
+      hourlyRate,
+      jobsCompleted: 0,
+      rating: 0,
+      totalRatingPoints: 0,
+      totalRatings: 0,
+      registeredAt: Date.now(),
+      availability: true,
+      verificationLevel: 'basic',
+    };
+    LocalStore.addLocalAgent(agent);
+    console.log('✅ Agent registered in demo mode:', name);
+    return { registerAgent: true };
+  }
+  
+  // Live mode: send to blockchain
   const mutation = `
     mutation RegisterAgent(
       $name: String!, 
@@ -352,8 +503,7 @@ export async function postJobOnChain(
 }
 
 /**
- * Place a bid on a job
- * Uses the application's GraphQL mutation
+ * Place a bid on a job - uses localStorage in demo mode, blockchain in live mode
  */
 export async function placeBidOnChain(
   jobId: number,
@@ -361,6 +511,23 @@ export async function placeBidOnChain(
   proposal: string,
   estimatedDays: number
 ): Promise<any> {
+  // Demo mode: store in localStorage
+  if (appMode === 'demo') {
+    const agent = getCurrentUserAddress() || ('0x' + 'agent'.repeat(16)) as Owner;
+    const bid: Bid = {
+      agent,
+      bidId: Date.now(),
+      timestamp: Date.now(),
+      amount,
+      proposal,
+      estimatedDays,
+    };
+    const job = LocalStore.addBidToLocalJob(jobId, bid);
+    console.log('✅ Bid placed in demo mode:', { jobId, amount });
+    return { placeBid: job ? true : false };
+  }
+  
+  // Live mode: send to blockchain
   const mutation = `
     mutation PlaceBid(
       $jobId: Int!, 
@@ -386,9 +553,19 @@ export async function placeBidOnChain(
 
 /**
  * Accept a bid (client accepts an agent's bid)
- * Uses the application's GraphQL mutation
+ * Uses localStorage in demo mode, blockchain in live mode
  */
 export async function acceptBidOnChain(jobId: number, agent: Owner, bidAmount: number): Promise<any> {
+  if (appMode === 'demo') {
+    const updatedJob = LocalStore.updateLocalJob(jobId, {
+      status: 'assigned' as JobStatus,
+      agent,
+      acceptedBidAmount: bidAmount,
+    });
+    console.log('✅ Bid accepted in demo mode:', { jobId, agent });
+    return { acceptBid: updatedJob ? true : false };
+  }
+  
   const mutation = `
     mutation AcceptBid($jobId: Int!, $agent: String!, $bidAmount: String!) {
       acceptBid(jobId: $jobId, agent: $agent, bidAmount: $bidAmount)
@@ -398,10 +575,17 @@ export async function acceptBidOnChain(jobId: number, agent: Owner, bidAmount: n
 }
 
 /**
- * Complete a job
- * Uses the application's GraphQL mutation
+ * Complete a job - uses localStorage in demo mode, blockchain in live mode
  */
 export async function completeJobOnChain(jobId: number): Promise<any> {
+  if (appMode === 'demo') {
+    const updatedJob = LocalStore.updateLocalJob(jobId, {
+      status: 'completed' as JobStatus,
+    });
+    console.log('✅ Job completed in demo mode:', jobId);
+    return { completeJob: updatedJob ? true : false };
+  }
+  
   const mutation = `
     mutation CompleteJob($jobId: Int!) {
       completeJob(jobId: $jobId)
@@ -1607,4 +1791,50 @@ export async function getOpenDisputesCount(): Promise<number> {
     console.error('Failed to fetch open disputes count:', error);
     return 0;
   }
+}
+
+// ==================== FAUCET RE-EXPORTS ====================
+
+export {
+  checkFaucetConnection,
+  getFaucetVersion,
+  getValidators,
+  initializeWallet,
+  loadWallet,
+  clearWallet,
+} from './faucet';
+
+// ==================== LOCAL STORAGE RE-EXPORTS ====================
+
+export {
+  resetToDemo,
+  clearLocalData,
+} from './localStorage';
+
+// ==================== INITIALIZATION ====================
+
+/**
+ * Initialize the app - connect wallet and set mode
+ * Call this on app startup
+ */
+export async function initializeApp(): Promise<{
+  wallet: WalletAuth;
+  mode: LocalStore.AppMode;
+  faucetConnected: boolean;
+}> {
+  console.log('🚀 Initializing Linera Marketplace...');
+  
+  // Check faucet connection
+  const faucetConnected = await Faucet.checkFaucetConnection();
+  console.log(faucetConnected ? '✅ Faucet connected' : '⚠️ Faucet not available');
+  
+  // Connect wallet (uses faucet if available)
+  const wallet = await connectWallet();
+  
+  // Check blockchain availability
+  const mode = await checkAndSetMode();
+  
+  console.log('🎉 App initialized:', { mode, faucetConnected });
+  
+  return { wallet, mode, faucetConnected };
 }

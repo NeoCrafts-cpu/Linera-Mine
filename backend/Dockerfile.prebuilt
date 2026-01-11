@@ -1,0 +1,61 @@
+# ===================================
+# Linera Backend for Render
+# ===================================
+# Downloads pre-built Linera binary - NO Rust compilation needed!
+
+FROM node:20-slim
+
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    curl \
+    libssl3 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Download pre-built Linera binary from GitHub Releases
+# Replace YOUR_GITHUB_USERNAME with actual username
+ARG LINERA_BINARY_URL=https://github.com/NeoCrafts-cpu/Linera-Mine/releases/download/v0.15.8/linera-linux-x86_64
+RUN curl -L -o /usr/local/bin/linera "${LINERA_BINARY_URL}" && \
+    chmod +x /usr/local/bin/linera && \
+    linera --version
+
+# Create app directory
+WORKDIR /app
+
+# Copy backend package files
+COPY backend/package*.json ./
+
+# Install Node.js dependencies
+RUN npm ci --only=production
+
+# Copy backend source and build
+COPY backend/tsconfig.json ./
+COPY backend/src ./src
+RUN npm install typescript ts-node @types/node @types/express @types/cors @types/uuid && \
+    npx tsc && \
+    rm -rf node_modules && \
+    npm ci --only=production
+
+# Copy WASM contracts
+COPY contracts/*.wasm /app/contracts/
+
+# Create data directory
+RUN mkdir -p /data
+
+# Environment variables
+ENV PORT=8081
+ENV NODE_ENV=production
+ENV LINERA_WALLET=/data/wallet.json
+ENV LINERA_KEYSTORE=/data/keystore.json
+ENV LINERA_STORAGE=rocksdb:/data/storage.db
+ENV FAUCET_URL=https://faucet.testnet-conway.linera.net
+ENV CONTRACT_PATH=/app/contracts/job-marketplace-contract.wasm
+ENV SERVICE_PATH=/app/contracts/job-marketplace-service.wasm
+
+EXPOSE 8081
+
+# Health check
+HEALTHCHECK --interval=60s --timeout=30s --start-period=120s --retries=3 \
+    CMD curl -sf http://localhost:8081/health || exit 1
+
+CMD ["node", "dist/index.js"]

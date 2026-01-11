@@ -1,4 +1,5 @@
 import React from 'react';
+import { ConnectionStatusBadge } from './ConnectionStatus';
 
 type HeaderView = 'home' | 'marketplace' | 'agents' | 'docs' | 'dashboard';
 
@@ -81,6 +82,9 @@ export const Header: React.FC<HeaderProps> = ({ activeView, setActiveView, isCon
                             </svg>
                         } />
                     )}
+
+                    {/* Connection Status */}
+                    <ConnectionStatusBadge />
 
                     {/* Wallet Connection */}
                     {isConnected && userAddress ? (
