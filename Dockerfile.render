@@ -1,9 +1,12 @@
 # ===================================
 # Linera Node Service for Render
 # ===================================
-# Uses Rust to compile Linera CLI, then runs the service
+# Uses Rust nightly to compile Linera CLI (required for async-graphql 7.x)
 
-FROM rust:1.85-slim-bookworm AS builder
+FROM rust:slim-bookworm AS builder
+
+# Install Rust nightly (required for async-graphql 7.0.17 which needs rustc 1.86+)
+RUN rustup default nightly
 
 # Install minimal dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
