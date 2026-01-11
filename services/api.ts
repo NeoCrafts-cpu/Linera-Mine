@@ -15,7 +15,7 @@ import * as Linera from './linera';
 const USE_LINERA = import.meta.env.VITE_USE_LINERA === 'true';
 const CHAIN_ID = import.meta.env.VITE_LINERA_CHAIN_ID || '';
 const APP_ID = import.meta.env.VITE_LINERA_APP_ID || '';
-const LINERA_PORT = import.meta.env.VITE_LINERA_PORT || '8081';
+const   LINERA_PORT = import.meta.env.VITE_LINERA_PORT || '8081';
 const LINERA_GRAPHQL_URL = import.meta.env.VITE_LINERA_GRAPHQL_URL || `http://localhost:${LINERA_PORT}`;
 
 console.log('🔗 Linera Integration:', {

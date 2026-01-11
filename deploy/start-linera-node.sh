@@ -17,7 +17,7 @@ LINERA_PORT=${LINERA_PORT:-8081}
 DATA_DIR=${DATA_DIR:-/data}
 WALLET_DIR="$DATA_DIR/wallet"
 CONTRACTS_DIR="/contracts"
-FAUCET_URL=${FAUCET_URL:-"https://faucet.conway.linera.net"}
+FAUCET_URL=${FAUCET_URL:-"https://faucet.testnet-conway.linera.net"}
 
 mkdir -p "$WALLET_DIR"
 

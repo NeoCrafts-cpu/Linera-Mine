@@ -1,12 +1,9 @@
 # ===================================
 # Linera Node Service for Render
 # ===================================
-# Uses Rust nightly to compile Linera CLI (required for async-graphql 7.x)
+# Uses Rust 1.86.0 as required by linera-service 0.15.8
 
-FROM rust:slim-bookworm AS builder
-
-# Install Rust nightly (required for async-graphql 7.0.17 which needs rustc 1.86+)
-RUN rustup default nightly
+FROM rust:1.86-slim-bookworm AS builder
 
 # Install minimal dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -15,11 +12,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     protobuf-compiler \
     && rm -rf /var/lib/apt/lists/*
 
-# Install only linera-service (which provides the linera binary)
-# Use release profile optimized for size
+# Install linera-service 0.15.8 (current testnet version)
 ENV CARGO_PROFILE_RELEASE_LTO=thin
 ENV CARGO_PROFILE_RELEASE_CODEGEN_UNITS=16
-RUN cargo install --locked linera-service@0.15.6
+RUN cargo install --locked linera-service@0.15.8
 
 # ===================================
 # Production Stage
