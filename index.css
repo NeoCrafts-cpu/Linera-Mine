@@ -1,0 +1,104 @@
+@import "tailwindcss";
+
+/* Import custom config */
+@config "./tailwind.config.js";
+
+/* Self-hosted Press Start 2P font for cross-origin isolation compatibility */
+@font-face {
+  font-family: 'Press Start 2P';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/PressStart2P.woff2') format('woff2');
+}
+
+/* Custom Minecraft-style scrollbar */
+::-webkit-scrollbar {
+  width: 12px;
+}
+::-webkit-scrollbar-track {
+  background: #2D2D2D;
+  border: 2px solid #373737;
+}
+::-webkit-scrollbar-thumb {
+  background: #8B8B8B;
+  border: 2px solid #555555;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #AAAAAA;
+}
+
+/* Pixelated rendering for images */
+.pixelated {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+/* MC Button hover effect */
+.mc-btn {
+  transition: all 0.1s ease;
+  position: relative;
+}
+.mc-btn:hover {
+  transform: translateY(-2px);
+}
+.mc-btn:active {
+  transform: translateY(2px);
+}
+
+/* Minecraft-style panel */
+.mc-panel {
+  background: linear-gradient(180deg, #C6C6C6 0%, #8B8B8B 100%);
+  border: 4px solid;
+  border-color: #FEFEFE #373737 #373737 #FEFEFE;
+  box-shadow: inset 2px 2px 0 #FFFFFF, inset -2px -2px 0 #555555;
+}
+
+/* Minecraft dark panel */
+.mc-panel-dark {
+  background: linear-gradient(180deg, #2D2D2D 0%, #1B1B2F 100%);
+  border: 4px solid;
+  border-color: #4A4A4A #1a1a1a #1a1a1a #4A4A4A;
+  box-shadow: inset 2px 2px 0 #555555, inset -2px -2px 0 #0a0a0a;
+}
+
+/* Text shadow for Minecraft style */
+.mc-text-shadow {
+  text-shadow: 2px 2px 0px #3F3F3F;
+}
+
+/* Gradient backgrounds */
+.bg-mc-gradient {
+  background: linear-gradient(180deg, #1B1B2F 0%, #2D2D2D 50%, #1B1B2F 100%);
+}
+
+/* Card styles */
+.mc-card {
+  background-color: #2D2D2D;
+  border-width: 4px;
+  border-style: solid;
+  border-top-color: #FEFEFE;
+  border-left-color: #FEFEFE;
+  border-bottom-color: #373737;
+  border-right-color: #373737;
+}
+
+/* Form input styles */
+.mc-input {
+  background-color: #1B1B2F;
+  border-width: 4px;
+  border-style: solid;
+  border-top-color: #373737;
+  border-left-color: #373737;
+  border-bottom-color: #7F7F7F;
+  border-right-color: #7F7F7F;
+  color: #FFFFFF;
+  padding: 0.5rem 0.75rem;
+}
+
+/* Base styles */
+body {
+  font-family: 'Press Start 2P', 'Courier New', monospace;
+  background-color: #1B1B2F;
+  color: #FFFFFF;
+}

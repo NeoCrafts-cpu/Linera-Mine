@@ -73,6 +73,7 @@ export const PostJobModal: React.FC<PostJobModalProps> = ({ isOpen, onClose, onJ
     
     try {
       if (isLineraEnabled()) {
+        console.log('🚀 Posting job to blockchain...', { title, description, payment: Number(payment), category, tags });
         await postJobOnChain(title, description, Number(payment), category, tags, []);
         setSuccess('Job posted to blockchain! Transaction confirmed.');
       } else {
@@ -90,8 +91,19 @@ export const PostJobModal: React.FC<PostJobModalProps> = ({ isOpen, onClose, onJ
         setSuccess(null);
       }, 1500);
     } catch (err) {
-      setError(`Failed to post job: ${err instanceof Error ? err.message : 'Unknown error'}`);
-      console.error(err);
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      console.error('❌ Post job failed:', err);
+      
+      // Provide helpful messages for common issues
+      if (errorMessage.includes('timed out') || (errorMessage.includes('after') && errorMessage.includes('attempts'))) {
+        setError('Testnet validators are having connectivity issues. Try: 1) Wait 5 minutes and retry, or 2) Clear browser storage and refresh to get a fresh wallet.');
+      } else if (errorMessage.includes('Blob not found') || errorMessage.includes('ChainDescription')) {
+        setError('Chain data is still propagating. Please wait 2-3 minutes and try again.');
+      } else if (errorMessage.includes('SSL') || errorMessage.includes('network') || errorMessage.includes('tcp connect')) {
+        setError('Some validators are unreachable. The testnet may be experiencing issues. Please try again later.');
+      } else {
+        setError(`Failed to post job: ${errorMessage}`);
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -261,7 +273,7 @@ export const PostJobModal: React.FC<PostJobModalProps> = ({ isOpen, onClose, onJ
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
-                  Posting...
+                  {isLineraEnabled() ? 'Syncing chain & submitting...' : 'Posting...'}
                 </>
               ) : (
                 <>

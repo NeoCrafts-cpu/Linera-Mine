@@ -10,7 +10,7 @@ import AgentProfilePage from './components/AgentProfilePage';
 import { ToastProvider } from './components/ToastNotifications';
 import { Owner } from './types';
 import { Footer } from './components/Footer';
-import { checkLineraConnection, getLineraWalletAddress, getChainId } from './services/linera';
+import { useLineraConnection } from './hooks';
 
 type View = 'home' | 'marketplace' | 'agents' | 'job-details' | 'docs' | 'dashboard' | 'agent-profile';
 
@@ -18,31 +18,34 @@ const App: React.FC = () => {
   const [activeView, setActiveView] = useState<View>('home');
   const [selectedJobId, setSelectedJobId] = useState<number | null>(null);
   const [selectedAgentOwner, setSelectedAgentOwner] = useState<Owner | null>(null);
-  const [isConnected, setIsConnected] = useState(false);
-  const [userAddress, setUserAddress] = useState<Owner | null>(null);
+  
+  // Use the Linera connection hook
+  const { 
+    isConnecting, 
+    isConnected, 
+    isAppConnected,
+    error: connectionError,
+    walletAddress,
+    chainId,
+    connect,
+    disconnect 
+  } = useLineraConnection();
 
-  // Check Linera connection on mount
+  // Log connection status changes
   useEffect(() => {
-    const initLineraConnection = async () => {
-      const USE_LINERA = import.meta.env.VITE_USE_LINERA === 'true';
-      if (USE_LINERA) {
-        try {
-          const isLineraAvailable = await checkLineraConnection();
-          if (isLineraAvailable) {
-            const address = await getLineraWalletAddress();
-            if (address) {
-              setUserAddress(address as Owner);
-              setIsConnected(true);
-            }
-          }
-        } catch (error) {
-          console.error('Failed to connect to Linera:', error);
-        }
-      }
-    };
-    
-    initLineraConnection();
-  }, []);
+    if (isAppConnected) {
+      console.log('✅ Connected to Job Marketplace on Linera!');
+      console.log(`   Chain ID: ${chainId}`);
+      console.log(`   Address: ${walletAddress}`);
+    }
+  }, [isAppConnected, chainId, walletAddress]);
+
+  // Log any connection errors
+  useEffect(() => {
+    if (connectionError) {
+      console.error('❌ Connection error:', connectionError);
+    }
+  }, [connectionError]);
 
   // This effect safely handles inconsistent states. If the view is 'job-details'
   // but no job is selected, it redirects to the marketplace.
@@ -76,42 +79,28 @@ const App: React.FC = () => {
   }, []);
 
   const handleConnect = async () => {
-    const USE_LINERA = import.meta.env.VITE_USE_LINERA === 'true';
+    // Generate a unique user address (in production, this would come from a wallet)
+    // For now, we use a random address or one from localStorage
+    let userAddr = localStorage.getItem('linera_user_address');
     
-    if (USE_LINERA) {
-      // Connect to Linera blockchain
-      try {
-        const isLineraAvailable = await checkLineraConnection();
-        if (isLineraAvailable) {
-          const address = await getLineraWalletAddress();
-          const chainId = getChainId();
-          
-          if (address && chainId) {
-            setUserAddress(address as Owner);
-            setIsConnected(true);
-            console.log('Connected to Linera Chain:', chainId);
-            console.log('Wallet Address:', address);
-          } else {
-            alert('Linera connection available but no wallet address found. Check your .env.local configuration.');
-          }
-        } else {
-          alert('Cannot connect to Linera. Make sure the GraphQL service is running on port 8081.');
-        }
-      } catch (error) {
-        console.error('Linera connection error:', error);
-        alert('Failed to connect to Linera blockchain. See console for details.');
-      }
-    } else {
-      // Mock connection for development
-      const mockUser: Owner = '0x' + 'a'.repeat(64) as Owner;
-      setUserAddress(mockUser);
-      setIsConnected(true);
+    if (!userAddr) {
+      // Generate a pseudo-random address
+      userAddr = '0x' + Array.from({ length: 40 }, () => 
+        Math.floor(Math.random() * 16).toString(16)
+      ).join('');
+      localStorage.setItem('linera_user_address', userAddr);
+    }
+    
+    try {
+      await connect(userAddr);
+    } catch (error) {
+      console.error('Connection failed:', error);
+      alert('Failed to connect to Linera. Check console for details.');
     }
   };
 
   const handleDisconnect = () => {
-    setIsConnected(false);
-    setUserAddress(null);
+    disconnect();
   };
 
   const renderContent = () => {
@@ -146,11 +135,28 @@ const App: React.FC = () => {
   return (
     <ToastProvider>
       <div className="min-h-screen font-sans flex flex-col">
+        {/* Connection status banner */}
+        {isConnecting && (
+          <div className="fixed top-0 left-0 right-0 z-50 bg-blue-900/80 border-b border-blue-500 p-2 text-center">
+            <span className="text-blue-200 text-sm animate-pulse">
+              🔄 Connecting to Linera blockchain...
+            </span>
+          </div>
+        )}
+        
+        {connectionError && (
+          <div className="fixed top-0 left-0 right-0 z-50 bg-red-900/80 border-b border-red-500 p-2 text-center">
+            <span className="text-red-200 text-sm">
+              ⚠️ {connectionError}
+            </span>
+          </div>
+        )}
+
         <Header 
           activeView={activeView} 
           setActiveView={setActiveView}
-          isConnected={isConnected}
-          userAddress={userAddress}
+          isConnected={isAppConnected}
+          userAddress={walletAddress as Owner | null}
           onConnect={handleConnect}
           onDisconnect={handleDisconnect}
         />

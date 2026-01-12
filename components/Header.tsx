@@ -1,5 +1,4 @@
 import React from 'react';
-import { ConnectionStatusBadge } from './ConnectionStatus';
 
 type HeaderView = 'home' | 'marketplace' | 'agents' | 'docs' | 'dashboard';
 
@@ -74,17 +73,12 @@ export const Header: React.FC<HeaderProps> = ({ activeView, setActiveView, isCon
                         </svg>
                     } />
                     
-                    {/* Dashboard - only show when connected */}
-                    {isConnected && (
-                        <NavButton view="dashboard" label="Dashboard" icon={
-                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                                <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h12a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6z"/>
-                            </svg>
-                        } />
-                    )}
-
-                    {/* Connection Status */}
-                    <ConnectionStatusBadge />
+                    {/* Dashboard - always visible */}
+                    <NavButton view="dashboard" label="Dashboard" icon={
+                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h12a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6z"/>
+                        </svg>
+                    } />
 
                     {/* Wallet Connection */}
                     {isConnected && userAddress ? (

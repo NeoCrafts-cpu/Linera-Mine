@@ -13,9 +13,9 @@ A decentralized marketplace for AI agents built on the **Linera blockchain**. Po
 
 ## 🧪 Quick Testing Guide (For Judges)
 
-### Option 1: Demo Mode (No Blockchain Required) - FASTEST
+### Option 1: Live on Conway Testnet - FASTEST
 
-Test all UI features without any blockchain setup:
+Connect directly to our deployed contract on Linera Testnet Conway:
 
 ```bash
 # Clone the repository
@@ -25,50 +25,21 @@ cd Linera-Mine
 # Install dependencies
 npm install
 
-# Create .env.local for demo mode
-echo "VITE_USE_LINERA=false" > .env.local
-
-# Start the app
+# The default .env already points to Conway testnet
+# Just start the app!
 npm run dev
 ```
 
-Open `http://localhost:5173` and explore all features with mock data:
+Open `http://localhost:5173` and explore all features with live blockchain:
 - ✅ Browse AI Agent profiles
 - ✅ View Job Marketplace with filtering
-- ✅ Post new jobs
+- ✅ Post new jobs (creates wallet via faucet)
 - ✅ Place bids on jobs
 - ✅ Accept bids as job client
 - ✅ Complete jobs and rate agents
 - ✅ View My Dashboard / Agent Dashboard
 
-### Option 2: Testnet Mode (Live Blockchain)
-
-Connect to our deployed contract on Linera Testnet Conway:
-
-```bash
-# Clone and install
-git clone https://github.com/NeoCrafts-cpu/Linera-Mine.git
-cd Linera-Mine
-npm install
-
-# Create .env.local with testnet config
-cat > .env.local << 'EOF'
-VITE_USE_LINERA=true
-VITE_LINERA_CHAIN_ID=c2a6a660f84521a3d2e98156a558c5c04275874e49879895bc16a9af295e8e2a
-VITE_LINERA_APP_ID=9843ce3089cfe7001492d420237e2d45d6a39347fdd0db33d1634ae86864de9f
-VITE_LINERA_PORT=8081
-VITE_LINERA_GRAPHQL_URL=http://localhost:8081
-VITE_LINERA_WALLET_OWNER=0xbfec8014a1233db36156ab4e66abf704f68d79ccb1dff4492c19098259651120
-EOF
-
-# Start Linera service (requires Linera CLI installed)
-linera service --port 8081
-
-# In another terminal, start frontend
-npm run dev
-```
-
-### Option 3: Docker (Full Local Network) - BUILDATHON SUBMISSION
+### Option 2: Docker (Full Local Network) - BUILDATHON SUBMISSION
 
 **This is the official buildathon submission method:**
 
@@ -143,8 +114,11 @@ linera-mine/
 │   ├── PlaceBidModal.tsx
 │   └── ...
 ├── services/
-│   ├── api.ts           # API layer (mock + blockchain)
-│   └── linera.ts        # Linera GraphQL client
+│   ├── api.ts           # API layer (blockchain operations)
+│   ├── linera/          # WASM @linera/client adapter
+│   ├── marketplaceApi.ts# GraphQL queries for marketplace
+│   ├── faucet.ts        # Wallet & faucet interactions
+│   └── endpointConfig.ts# Endpoint configuration
 ├── linera-contracts/
 │   └── job-marketplace/
 │       └── src/
@@ -329,7 +303,7 @@ This project leverages the following Linera SDK features and protocol capabiliti
 - ✅ Complete AI Agent Job Marketplace smart contract
 - ✅ Full React frontend with TypeScript
 - ✅ Docker containerization matching buildathon template
-- ✅ Demo mode for testing without blockchain
+- ✅ Direct WASM blockchain connectivity via @linera/client
 - ✅ Testnet Conway deployment
 - ✅ GraphQL API integration
 - ✅ Agent registration and profile management
@@ -357,16 +331,13 @@ docker compose up --build --force-recreate
 # Open http://localhost:5173
 ```
 
-### Option B: Testnet Conway (Live Blockchain)
-- **Chain ID**: `c2a6a660f84521a3d2e98156a558c5c04275874e49879895bc16a9af295e8e2a`
-- **App ID**: `9843ce3089cfe7001492d420237e2d45d6a39347fdd0db33d1634ae86864de9f`
-- Requires Linera CLI and wallet setup (see Option 2 in Quick Testing Guide)
-
-### Option C: Demo Mode (Fastest)
+### Option B: Conway Testnet (Fastest - No Setup Required)
 ```bash
-npm install && echo "VITE_USE_LINERA=false" > .env.local && npm run dev
+npm install && npm run dev
 # Open http://localhost:5173
 ```
+The app automatically connects to our deployed contract on Linera Testnet Conway.
+New wallets are created via the faucet when you connect.
 
 ---
 

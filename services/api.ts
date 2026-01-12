@@ -1,76 +1,63 @@
+/**
+ * Linera Job Marketplace API
+ * 
+ * This module provides the API layer for interacting with the Linera blockchain.
+ * All operations go through the WASM adapter for direct blockchain communication.
+ */
 
 import {
   AgentProfile, Job, JobStatus, Owner, Bid, JobFilter, AgentFilter, JobSortField, 
   AgentSortField, SortDirection, MarketplaceStats, WalletAuth, AgentRating,
-  // New v2.0 types
   JobCategory, EscrowInfo, Dispute, DisputeStatus, ChatMessage, VerificationLevel,
   PostJobInput, PlaceBidInput, RegisterAgentInput, UpdateAgentInput,
   OpenDisputeInput, ResolveDisputeInput, SendMessageInput,
   Milestone, MilestoneStatus, EscrowStatus
 } from '../types';
-import * as Linera from './linera';
 import * as Faucet from './faucet';
-import * as LocalStore from './localStorage';
+import { initializeEndpoints, getEndpointConfig, endpointManager } from './endpointConfig';
 
-// Toggle between mock data and Linera blockchain
-// Set VITE_USE_LINERA=true in .env.local to enable Linera integration
+// Import the Linera adapter for direct WASM connection
+import { lineraAdapter } from './linera/index';
+import { marketplaceApi } from './marketplaceApi';
+
+// Configuration from environment
 const USE_LINERA = import.meta.env.VITE_USE_LINERA === 'true';
+const APP_ID = import.meta.env.VITE_LINERA_APP_ID || import.meta.env.VITE_APPLICATION_ID || '';
 const CHAIN_ID = import.meta.env.VITE_LINERA_CHAIN_ID || '';
-const APP_ID = import.meta.env.VITE_LINERA_APP_ID || '';
-const LINERA_PORT = import.meta.env.VITE_LINERA_PORT || '8081';
-const LINERA_GRAPHQL_URL = import.meta.env.VITE_LINERA_GRAPHQL_URL || `http://localhost:${LINERA_PORT}`;
 
-// App mode: 'demo' uses localStorage, 'live' uses blockchain
-let appMode: LocalStore.AppMode = LocalStore.getAppMode();
+// Track if endpoints have been initialized
+let endpointsInitialized = false;
 
 console.log('🔗 Linera Integration:', {
   enabled: USE_LINERA,
-  mode: appMode,
-  chainId: CHAIN_ID ? `${CHAIN_ID.substring(0, 16)}...` : 'Not set',
   appId: APP_ID ? `${APP_ID.substring(0, 16)}...` : 'Not set',
+  chainId: CHAIN_ID ? `${CHAIN_ID.substring(0, 16)}...` : '(dynamic - claimed from faucet)',
 });
 
-// ==================== APP MODE ====================
+// ==================== ADAPTER STATUS ====================
 
-export function getAppMode(): LocalStore.AppMode {
-  return appMode;
-}
-
-export function setAppMode(mode: LocalStore.AppMode): void {
-  appMode = mode;
-  LocalStore.setAppMode(mode);
-  console.log(`🔄 App mode changed to: ${mode}`);
+/**
+ * Check if connected via the WASM adapter
+ */
+export function isAdapterConnected(): boolean {
+  return lineraAdapter.isApplicationConnected();
 }
 
 /**
- * Check if blockchain is available and switch modes accordingly
+ * Initialize the API with endpoint discovery
+ * Call this on app startup
  */
-export async function checkAndSetMode(): Promise<LocalStore.AppMode> {
-  if (!USE_LINERA || !CHAIN_ID || !APP_ID) {
-    setAppMode('demo');
-    return 'demo';
-  }
+export async function initializeApi(): Promise<void> {
+  if (endpointsInitialized) return;
   
-  try {
-    // Try to connect to the linera service
-    const endpoint = getApplicationEndpoint();
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query: '{ __typename }' }),
-    });
-    
-    if (response.ok) {
-      setAppMode('live');
-      console.log('✅ Connected to Linera blockchain - LIVE mode');
-      return 'live';
-    }
-  } catch (error) {
-    console.warn('⚠️ Linera service not available, using demo mode');
-  }
+  console.log('🚀 Initializing Linera API...');
   
-  setAppMode('demo');
-  return 'demo';
+  // Initialize and discover available endpoints
+  await initializeEndpoints();
+  
+  endpointsInitialized = true;
+  
+  console.log('✅ API initialization complete');
 }
 
 // Wallet authentication state
@@ -96,15 +83,7 @@ export async function connectWallet(): Promise<WalletAuth> {
         console.log('🔑 Creating new wallet via faucet...');
         wallet = await Faucet.createWalletWithChain();
       } else {
-        // Fallback to demo mode
-        console.log('⚠️ Faucet not available, using demo wallet');
-        wallet = {
-          publicKey: 'demo_' + Math.random().toString(36).substring(7),
-          privateKey: 'demo_private',
-          chainId: 'demo-chain-' + Date.now(),
-          createdAt: Date.now(),
-        };
-        Faucet.saveWallet(wallet);
+        throw new Error('Faucet not available. Please try again later.');
       }
     }
     
@@ -118,22 +97,10 @@ export async function connectWallet(): Promise<WalletAuth> {
     console.log('✅ Wallet connected:', auth.address.substring(0, 16) + '...');
     console.log('🔗 User chain:', auth.chainId.substring(0, 16) + '...');
     
-    // Check what mode we should be in
-    await checkAndSetMode();
-    
     return auth;
   } catch (error) {
     console.error('❌ Wallet connection failed:', error);
-    
-    // Fallback to demo wallet on any error
-    const demoAuth: WalletAuth = {
-      address: ('0x' + 'demo'.repeat(16)) as Owner,
-      chainId: 'demo-chain',
-      isAuthenticated: true,
-    };
-    currentWalletAuth = demoAuth;
-    setAppMode('demo');
-    return demoAuth;
+    throw error;
   }
 }
 
@@ -180,16 +147,37 @@ export function getCurrentUserAddress(): Owner | null {
 
 /**
  * Check if Linera integration is enabled
+ * For WASM mode: only needs USE_LINERA=true and APP_ID
+ * Chain ID is claimed dynamically from faucet
  */
 export function isLineraEnabled(): boolean {
-  return USE_LINERA && !!CHAIN_ID && !!APP_ID;
+  return USE_LINERA && !!APP_ID;
 }
 
 /**
  * Get the GraphQL endpoint for the Linera application
+ * NOTE: With WASM client, this is only used as a fallback.
+ * Primary method is lineraAdapter.query()
  */
 function getGraphQLEndpoint(): string {
-  return `${LINERA_GRAPHQL_URL}/chains/${CHAIN_ID}/applications/${APP_ID}`;
+  const config = getEndpointConfig();
+  
+  // If we have a configured graphql URL, use it
+  if (config.graphqlUrl) {
+    // If URL already has full path, use as-is
+    if (config.graphqlUrl.includes('/chains/')) {
+      return config.graphqlUrl;
+    }
+    // Build full path
+    if (config.chainId && config.appId) {
+      return `${config.graphqlUrl}/chains/${config.chainId}/applications/${config.appId}`;
+    }
+    return config.graphqlUrl;
+  }
+  
+  // No GraphQL URL configured - return empty (will cause error if used)
+  console.warn('⚠️ No GraphQL endpoint configured. Use WASM adapter instead.');
+  return '';
 }
 
 /**
@@ -222,121 +210,50 @@ async function executeGraphQL(query: string, variables: Record<string, unknown> 
 // ==================== QUERY FUNCTIONS ====================
 
 /**
- * Get all agents - uses blockchain in live mode, localStorage in demo mode
+ * Get all agents from the blockchain
  */
 export async function getAgents(): Promise<AgentProfile[]> {
-  if (appMode === 'demo') {
-    console.log('📦 Fetching agents from localStorage (demo mode)');
-    return LocalStore.getLocalAgents();
-  }
-  
-  if (!isLineraEnabled()) {
-    console.warn('Linera not enabled - returning local agents');
-    return LocalStore.getLocalAgents();
-  }
-  
-  try {
-    return await getAgentsFromChain();
-  } catch (error) {
-    console.warn('⚠️ Failed to fetch from chain, falling back to local:', error);
-    return LocalStore.getLocalAgents();
-  }
+  return getAgentsFromChain();
 }
 
 /**
- * Get all jobs - uses blockchain in live mode, localStorage in demo mode
+ * Get all jobs from the blockchain
  */
 export async function getJobs(): Promise<Job[]> {
-  if (appMode === 'demo') {
-    console.log('📦 Fetching jobs from localStorage (demo mode)');
-    return LocalStore.getLocalJobs();
-  }
-  
-  if (!isLineraEnabled()) {
-    console.warn('Linera not enabled - returning local jobs');
-    return LocalStore.getLocalJobs();
-  }
-  
-  try {
-    return await getJobsFromChain();
-  } catch (error) {
-    console.warn('⚠️ Failed to fetch from chain, falling back to local:', error);
-    return LocalStore.getLocalJobs();
-  }
+  return getJobsFromChain();
 }
 
 /**
- * Get a specific job by ID - uses blockchain in live mode, localStorage in demo mode
+ * Get a specific job by ID
  */
 export async function getJobById(id: number): Promise<Job | undefined> {
-  if (appMode === 'demo') {
-    return LocalStore.getLocalJobById(id);
-  }
-  
-  if (!isLineraEnabled()) {
-    return LocalStore.getLocalJobById(id);
-  }
-  
-  try {
-    return await getJobFromChain(id);
-  } catch (error) {
-    console.warn('⚠️ Failed to fetch from chain, falling back to local:', error);
-    return LocalStore.getLocalJobById(id);
-  }
+  return getJobFromChain(id);
 }
 
-// Legacy postJob function - now uses demo mode or chain based on appMode
+// Legacy postJob function for backward compatibility
 export const postJob = async (description: string, payment: number, title: string = 'New Job', category: string = 'Other', tags: string[] = []): Promise<Job> => {
-  if (appMode === 'demo') {
-    // Store in localStorage for demo mode
-    const client = getCurrentUserAddress() || ('0x' + 'demo'.repeat(16)) as Owner;
-    return LocalStore.addLocalJob({
-      client,
-      title,
-      description,
-      payment,
-      status: 'open' as JobStatus,
-      category,
-      tags,
-      milestones: [],
-    });
-  }
-  return postJobOnChain(title, description, payment, category, tags, []);
+  const result = await postJobOnChain(title, description, payment, category, tags, []);
+  const job = await getJobById(result.postJob);
+  if (!job) throw new Error('Job created but not found');
+  return job;
 };
 
 export const acceptJob = async (jobId: number, agentOwner: Owner): Promise<Job> => {
-  if (appMode === 'demo') {
-    // Update in localStorage for demo mode
-    const job = LocalStore.getLocalJobById(jobId);
-    if (!job) throw new Error('Job not found');
-    
-    const bid = job.bids?.find(b => {
-      const bidAgent = typeof b.agent === 'string' ? b.agent : (b.agent as AgentProfile)?.owner;
-      return bidAgent === agentOwner;
-    });
-    
-    const updatedJob = LocalStore.updateLocalJob(jobId, {
-      status: 'assigned' as JobStatus,
-      agent: agentOwner,
-      acceptedBidAmount: bid?.amount || job.payment,
-    });
-    
-    return updatedJob!;
-  }
-  
-  // Need to get the bid amount from the job
   const job = await getJobById(jobId);
-  const bid = job?.bids.find(b => {
+  if (!job) throw new Error('Job not found');
+  
+  const bid = job.bids?.find(b => {
     const bidAgent = typeof b.agent === 'string' ? b.agent : (b.agent as AgentProfile)?.owner;
     return bidAgent === agentOwner;
   });
-  const bidAmount = bid?.amount || job?.payment || 0;
+  const bidAmount = bid?.amount || job.payment || 0;
   await acceptBidOnChain(jobId, agentOwner, typeof bidAmount === 'number' ? bidAmount : parseFloat(bidAmount as string));
-  return getJobById(jobId) as Promise<Job>;
+  const updatedJob = await getJobById(jobId);
+  if (!updatedJob) throw new Error('Job not found after accepting bid');
+  return updatedJob;
 };
 
 export const placeBid = async (jobId: number): Promise<Job> => {
-  // This should not be called directly - use placeBidOnChain with proper params
   throw new Error('placeBid requires amount, proposal, and estimatedDays. Use placeBidOnChain instead.');
 };
 
@@ -344,20 +261,35 @@ export const placeBid = async (jobId: number): Promise<Job> => {
 
 /**
  * Get the application GraphQL endpoint URL
- * Linera applications are accessed at: /chains/{chainId}/applications/{appId}
+ * NOTE: With WASM client approach, this is only used as a fallback.
+ * The primary connection method is via lineraAdapter.connectApplication()
  */
 function getApplicationEndpoint(): string {
-  // If GRAPHQL_URL already has the full path, use it directly
-  if (LINERA_GRAPHQL_URL.includes('/chains/')) {
-    return LINERA_GRAPHQL_URL;
+  const config = getEndpointConfig();
+  
+  // If we have a configured graphql URL, use it
+  if (config.graphqlUrl) {
+    // If URL already has full path, use as-is
+    if (config.graphqlUrl.includes('/chains/')) {
+      return config.graphqlUrl;
+    }
+    // Build full path
+    if (config.chainId && config.appId) {
+      return `${config.graphqlUrl}/chains/${config.chainId}/applications/${config.appId}`;
+    }
+    return config.graphqlUrl;
   }
-  // Otherwise build the path
-  return `${LINERA_GRAPHQL_URL}/chains/${CHAIN_ID}/applications/${APP_ID}`;
+  
+  // No GraphQL URL configured - WASM client should be used instead
+  // Return empty string to trigger error in fallback code
+  console.warn('⚠️ No GraphQL endpoint configured. Please use WASM adapter.');
+  return '';
 }
 
 /**
  * Execute a GraphQL mutation on the application
- * This sends the mutation to the application's GraphQL endpoint
+ * NOTE: This HTTP endpoint is deprecated. Use lineraAdapter.mutate() instead.
+ * This function is kept for backward compatibility but will fail without a configured endpoint.
  */
 export async function executeApplicationMutation(mutation: string, variables?: Record<string, any>): Promise<any> {
   if (!USE_LINERA) {
@@ -365,6 +297,12 @@ export async function executeApplicationMutation(mutation: string, variables?: R
   }
 
   const endpoint = getApplicationEndpoint();
+  
+  // If no endpoint, we can't use HTTP fallback
+  if (!endpoint) {
+    throw new Error('No GraphQL endpoint available. Please connect via WASM adapter first.');
+  }
+  
   console.log('🔗 Executing mutation on:', endpoint);
 
   try {
@@ -395,7 +333,8 @@ export async function executeApplicationMutation(mutation: string, variables?: R
 }
 
 /**
- * Register as an agent - uses localStorage in demo mode, blockchain in live mode
+ * Register as an agent on the blockchain
+ * Uses the WASM adapter when connected
  */
 export async function registerAgentOnChain(
   name: string, 
@@ -403,29 +342,27 @@ export async function registerAgentOnChain(
   skills: string[] = [],
   hourlyRate: number | null = null
 ): Promise<any> {
-  // Demo mode: store in localStorage
-  if (appMode === 'demo') {
-    const owner = getCurrentUserAddress() || ('0x' + 'user'.repeat(16)) as Owner;
-    const agent: AgentProfile = {
-      owner,
-      name,
-      serviceDescription,
-      skills,
-      hourlyRate,
-      jobsCompleted: 0,
-      rating: 0,
-      totalRatingPoints: 0,
-      totalRatings: 0,
-      registeredAt: Date.now(),
-      availability: true,
-      verificationLevel: 'basic',
-    };
-    LocalStore.addLocalAgent(agent);
-    console.log('✅ Agent registered in demo mode:', name);
-    return { registerAgent: true };
+  // Try using the WASM adapter first
+  if (isAdapterConnected()) {
+    try {
+      console.log('📡 Registering agent via WASM adapter...');
+      await marketplaceApi.registerAgent({
+        name,
+        serviceDescription,
+        skills,
+        hourlyRate: hourlyRate?.toString() || undefined,
+      });
+      console.log('✅ Agent registered via WASM adapter');
+      return { registerAgent: true };
+    } catch (error) {
+      console.warn('WASM adapter mutation failed, falling back to HTTP:', error);
+      if (!getGraphQLEndpoint()) {
+        throw error;
+      }
+    }
   }
   
-  // Live mode: send to blockchain
+  // Fallback to HTTP
   const mutation = `
     mutation RegisterAgent(
       $name: String!, 
@@ -451,7 +388,7 @@ export async function registerAgentOnChain(
 
 /**
  * Post a job on the blockchain
- * Uses the application's GraphQL mutation
+ * Uses the WASM adapter when connected, falls back to HTTP
  */
 export async function postJobOnChain(
   title: string,
@@ -461,6 +398,38 @@ export async function postJobOnChain(
   tags: string[] = [],
   milestones: { title: string; description: string; paymentPercentage: number }[] = []
 ): Promise<any> {
+  // Try using the WASM adapter first
+  if (isAdapterConnected()) {
+    try {
+      console.log('📡 Posting job via WASM adapter...');
+      
+      // Convert milestones to the expected snake_case format (Rust naming)
+      const milestoneInputs = milestones.map(m => ({
+        title: m.title,
+        description: m.description,
+        payment_percentage: m.paymentPercentage,
+        due_days: null
+      }));
+      const jobId = await marketplaceApi.postJob({
+        title,
+        description,
+        payment: payment.toString(),
+        deadline: Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60, // 30 days
+        category: category.toUpperCase().replace(/ /g, '_') as JobCategory,
+        tags,
+        milestones: milestoneInputs,
+      });
+      console.log('✅ Job posted via WASM adapter, ID:', jobId);
+      return { postJob: jobId };
+    } catch (error) {
+      console.warn('WASM adapter mutation failed, falling back to HTTP:', error);
+      if (!getGraphQLEndpoint()) {
+        throw error;
+      }
+    }
+  }
+
+  // Fallback: HTTP endpoint
   const mutation = `
     mutation PostJob(
       $title: String!, 
@@ -483,12 +452,12 @@ export async function postJobOnChain(
     }
   `;
   
-  // Convert milestones to the expected format
+  // Convert milestones to the expected format (snake_case for Rust)
   const milestoneInputs = milestones.map(m => ({
     title: m.title,
     description: m.description,
-    paymentPercentage: m.paymentPercentage,
-    dueDays: null
+    payment_percentage: m.paymentPercentage,
+    due_days: null
   }));
   
   return executeApplicationMutation(mutation, { 
@@ -503,7 +472,8 @@ export async function postJobOnChain(
 }
 
 /**
- * Place a bid on a job - uses localStorage in demo mode, blockchain in live mode
+ * Place a bid on a job
+ * Uses the WASM adapter when connected
  */
 export async function placeBidOnChain(
   jobId: number,
@@ -511,23 +481,26 @@ export async function placeBidOnChain(
   proposal: string,
   estimatedDays: number
 ): Promise<any> {
-  // Demo mode: store in localStorage
-  if (appMode === 'demo') {
-    const agent = getCurrentUserAddress() || ('0x' + 'agent'.repeat(16)) as Owner;
-    const bid: Bid = {
-      agent,
-      bidId: Date.now(),
-      timestamp: Date.now(),
-      amount,
-      proposal,
-      estimatedDays,
-    };
-    const job = LocalStore.addBidToLocalJob(jobId, bid);
-    console.log('✅ Bid placed in demo mode:', { jobId, amount });
-    return { placeBid: job ? true : false };
+  // Try using the WASM adapter first
+  if (isAdapterConnected()) {
+    try {
+      console.log('📡 Placing bid via WASM adapter...');
+      await marketplaceApi.placeBid({
+        jobId,
+        amount: amount.toString(),
+        proposal,
+      });
+      console.log('✅ Bid placed via WASM adapter');
+      return { placeBid: true };
+    } catch (error) {
+      console.warn('WASM adapter mutation failed, falling back to HTTP:', error);
+      if (!getGraphQLEndpoint()) {
+        throw error;
+      }
+    }
   }
   
-  // Live mode: send to blockchain
+  // Fallback to HTTP
   const mutation = `
     mutation PlaceBid(
       $jobId: Int!, 
@@ -553,19 +526,25 @@ export async function placeBidOnChain(
 
 /**
  * Accept a bid (client accepts an agent's bid)
- * Uses localStorage in demo mode, blockchain in live mode
+ * Uses the WASM adapter when connected
  */
 export async function acceptBidOnChain(jobId: number, agent: Owner, bidAmount: number): Promise<any> {
-  if (appMode === 'demo') {
-    const updatedJob = LocalStore.updateLocalJob(jobId, {
-      status: 'assigned' as JobStatus,
-      agent,
-      acceptedBidAmount: bidAmount,
-    });
-    console.log('✅ Bid accepted in demo mode:', { jobId, agent });
-    return { acceptBid: updatedJob ? true : false };
+  // Try using the WASM adapter first
+  if (isAdapterConnected()) {
+    try {
+      console.log('📡 Accepting bid via WASM adapter...');
+      await marketplaceApi.acceptBid(jobId, agent, bidAmount.toString());
+      console.log('✅ Bid accepted via WASM adapter');
+      return { acceptBid: true };
+    } catch (error) {
+      console.warn('WASM adapter mutation failed, falling back to HTTP:', error);
+      if (!getGraphQLEndpoint()) {
+        throw error;
+      }
+    }
   }
   
+  // Fallback to HTTP
   const mutation = `
     mutation AcceptBid($jobId: Int!, $agent: String!, $bidAmount: String!) {
       acceptBid(jobId: $jobId, agent: $agent, bidAmount: $bidAmount)
@@ -575,17 +554,26 @@ export async function acceptBidOnChain(jobId: number, agent: Owner, bidAmount: n
 }
 
 /**
- * Complete a job - uses localStorage in demo mode, blockchain in live mode
+ * Complete a job
+ * Uses the WASM adapter when connected
  */
 export async function completeJobOnChain(jobId: number): Promise<any> {
-  if (appMode === 'demo') {
-    const updatedJob = LocalStore.updateLocalJob(jobId, {
-      status: 'completed' as JobStatus,
-    });
-    console.log('✅ Job completed in demo mode:', jobId);
-    return { completeJob: updatedJob ? true : false };
+  // Try using the WASM adapter first
+  if (isAdapterConnected()) {
+    try {
+      console.log('📡 Completing job via WASM adapter...');
+      await marketplaceApi.completeJob(jobId);
+      console.log('✅ Job completed via WASM adapter');
+      return { completeJob: true };
+    } catch (error) {
+      console.warn('WASM adapter mutation failed, falling back to HTTP:', error);
+      if (!getGraphQLEndpoint()) {
+        throw error;
+      }
+    }
   }
   
+  // Fallback to HTTP
   const mutation = `
     mutation CompleteJob($jobId: Int!) {
       completeJob(jobId: $jobId)
@@ -598,18 +586,20 @@ export async function completeJobOnChain(jobId: number): Promise<any> {
  * Get blockchain configuration
  */
 export function getLineraConfig() {
+  const config = getEndpointConfig();
   return {
     enabled: USE_LINERA,
-    chainId: CHAIN_ID,
-    appId: APP_ID,
-    graphqlUrl: LINERA_GRAPHQL_URL,
-    port: LINERA_PORT,
+    chainId: config.chainId || CHAIN_ID,
+    appId: config.appId || APP_ID,
+    faucetUrl: config.faucetUrl,
+    mode: config.mode,
   };
 }
 
 /**
  * Execute a GraphQL query on the application
- * This sends the query to the application's GraphQL endpoint
+ * NOTE: This HTTP endpoint is deprecated. Use lineraAdapter.query() instead.
+ * This function is kept for backward compatibility but will fail without a configured endpoint.
  */
 export async function executeApplicationQuery(query: string, variables?: Record<string, any>): Promise<any> {
   if (!USE_LINERA) {
@@ -617,6 +607,12 @@ export async function executeApplicationQuery(query: string, variables?: Record<
   }
 
   const endpoint = getApplicationEndpoint();
+  
+  // If no endpoint, we can't use HTTP fallback
+  if (!endpoint) {
+    throw new Error('No GraphQL endpoint available. Please connect via WASM adapter first.');
+  }
+  
   console.log('🔍 Executing query on:', endpoint);
 
   try {
@@ -649,8 +645,43 @@ export async function executeApplicationQuery(query: string, variables?: Record<
 
 /**
  * Fetch all jobs from the blockchain
+ * Uses the new WASM adapter when connected, falls back to HTTP endpoint
  */
 export async function getJobsFromChain(): Promise<Job[]> {
+  // Try using the new WASM adapter first
+  if (isAdapterConnected()) {
+    try {
+      console.log('📡 Fetching jobs via WASM adapter...');
+      const jobs = await marketplaceApi.getJobs();
+      return jobs.map((job: any) => ({
+        ...job,
+        status: normalizeJobStatus(job.status),
+        payment: typeof job.payment === 'string' ? parseFloat(job.payment) : (job.payment || 0),
+        id: typeof job.id === 'string' ? parseInt(job.id, 10) : job.id,
+        bids: (job.bids || []).map((bid: any) => ({
+          ...bid,
+          bidId: typeof bid.bidId === 'string' ? parseInt(bid.bidId, 10) : bid.bidId,
+          amount: typeof bid.amount === 'string' ? parseFloat(bid.amount) : (bid.amount || 0),
+          estimatedDays: typeof bid.estimatedDays === 'string' ? parseInt(bid.estimatedDays, 10) : (bid.estimatedDays || 0),
+        })),
+        milestones: job.milestones || [],
+        tags: job.tags || [],
+      }));
+    } catch (error) {
+      console.warn('WASM adapter query failed:', error);
+      // Don't fall back to HTTP - WASM is the primary method
+      return [];
+    }
+  }
+
+  // WASM not connected - check if HTTP is available
+  const endpoint = getGraphQLEndpoint();
+  if (!endpoint) {
+    console.log('ℹ️ Wallet not connected yet. Connect wallet to see jobs from blockchain.');
+    return [];
+  }
+
+  // Fallback to HTTP endpoint
   const query = `
     query GetJobs {
       jobs {
@@ -713,8 +744,35 @@ export async function getJobsFromChain(): Promise<Job[]> {
 
 /**
  * Fetch all agents from the blockchain
+ * Uses the new WASM adapter when connected, falls back to HTTP endpoint
  */
 export async function getAgentsFromChain(): Promise<AgentProfile[]> {
+  // Try using the new WASM adapter first
+  if (isAdapterConnected()) {
+    try {
+      console.log('📡 Fetching agents via WASM adapter...');
+      const agents = await marketplaceApi.getAgents();
+      return agents.map((agent: any) => ({
+        ...agent,
+        rating: agent.totalRatings > 0 ? agent.totalRatingPoints / agent.totalRatings : 0,
+        hourlyRate: agent.hourlyRate ? parseFloat(agent.hourlyRate) : null,
+        skills: agent.skills || [],
+      }));
+    } catch (error) {
+      console.warn('WASM adapter query failed:', error);
+      // Don't fall back to HTTP - WASM is the primary method
+      return [];
+    }
+  }
+
+  // WASM not connected - check if HTTP is available
+  const endpoint = getGraphQLEndpoint();
+  if (!endpoint) {
+    console.log('ℹ️ Wallet not connected yet. Connect wallet to see agents from blockchain.');
+    return [];
+  }
+
+  // Fallback to HTTP endpoint
   const query = `
     query GetAgents {
       agents {
@@ -1000,6 +1058,7 @@ function normalizeJobStatus(status: string): JobStatus {
 /**
  * Rate an agent after job completion
  * Note: rateAgent mutation may not exist in all contract versions
+ * Uses the new WASM adapter when connected
  */
 export async function rateAgentOnChain(jobId: number, rating: number, review: string): Promise<any> {
   // Get current user address for the rating
@@ -1017,6 +1076,19 @@ export async function rateAgentOnChain(jobId: number, rating: number, review: st
   // Always save locally first as backup
   saveLocalRating(ratingObj);
 
+  // Try using the new WASM adapter first
+  if (isAdapterConnected()) {
+    try {
+      console.log('📡 Rating agent via WASM adapter...');
+      await marketplaceApi.rateAgent({ jobId, rating, review });
+      console.log('✅ Agent rated via WASM adapter');
+      return { success: true, jobId, rating, review };
+    } catch (error) {
+      console.warn('WASM adapter mutation failed, falling back to HTTP:', error);
+    }
+  }
+
+  // Fallback: HTTP
   try {
     const mutation = `
       mutation RateAgent($jobId: Int!, $rating: Int!, $review: String!) {
@@ -1036,8 +1108,22 @@ export async function rateAgentOnChain(jobId: number, rating: number, review: st
 
 /**
  * Update agent profile
+ * Uses the new WASM adapter when connected
  */
 export async function updateAgentProfileOnChain(name?: string, serviceDescription?: string): Promise<any> {
+  // Try using the new WASM adapter first
+  if (isAdapterConnected()) {
+    try {
+      console.log('📡 Updating agent profile via WASM adapter...');
+      await marketplaceApi.updateAgentProfile({ name, serviceDescription });
+      console.log('✅ Agent profile updated via WASM adapter');
+      return { success: true };
+    } catch (error) {
+      console.warn('WASM adapter mutation failed, falling back to HTTP:', error);
+    }
+  }
+
+  // Fallback: HTTP
   const mutation = `
     mutation UpdateAgentProfile($name: String, $serviceDescription: String) {
       updateAgentProfile(name: $name, serviceDescription: $serviceDescription)
@@ -1804,22 +1890,14 @@ export {
   clearWallet,
 } from './faucet';
 
-// ==================== LOCAL STORAGE RE-EXPORTS ====================
-
-export {
-  resetToDemo,
-  clearLocalData,
-} from './localStorage';
-
 // ==================== INITIALIZATION ====================
 
 /**
- * Initialize the app - connect wallet and set mode
+ * Initialize the app - connect wallet
  * Call this on app startup
  */
 export async function initializeApp(): Promise<{
   wallet: WalletAuth;
-  mode: LocalStore.AppMode;
   faucetConnected: boolean;
 }> {
   console.log('🚀 Initializing Linera Marketplace...');
@@ -1831,10 +1909,7 @@ export async function initializeApp(): Promise<{
   // Connect wallet (uses faucet if available)
   const wallet = await connectWallet();
   
-  // Check blockchain availability
-  const mode = await checkAndSetMode();
+  console.log('🎉 App initialized:', { faucetConnected });
   
-  console.log('🎉 App initialized:', { mode, faucetConnected });
-  
-  return { wallet, mode, faucetConnected };
+  return { wallet, faucetConnected };
 }

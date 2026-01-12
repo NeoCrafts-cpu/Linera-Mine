@@ -1,3 +1,14 @@
+/**
+ * @deprecated This entire backend folder is deprecated and should be deleted.
+ * The app now uses the WASM @linera/client directly in the browser.
+ * This backend was intended to proxy requests to a local linera node service,
+ * but the new architecture connects directly to the faucet and validators.
+ * 
+ * This folder is excluded from TypeScript compilation via tsconfig.json.
+ * 
+ * TODO: Delete this entire 'backend' folder when able to modify filesystem.
+ */
+
 import express from 'express';
 import cors from 'cors';
 import { LineraClient } from './linera-client';

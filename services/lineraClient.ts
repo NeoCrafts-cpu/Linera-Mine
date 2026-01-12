@@ -1,4 +1,12 @@
 /**
+ * @deprecated This file is deprecated and should be deleted.
+ * The app now uses the WASM adapter from './linera/index' instead.
+ * This file is excluded from TypeScript compilation via tsconfig.json.
+ * 
+ * TODO: Delete this file when able to modify filesystem.
+ */
+
+/**
  * Linera GraphQL Client
  * 
  * This follows the official Linera protocol pattern for connecting to applications.
@@ -8,20 +16,25 @@
  * - HTTP: http://{host}:{port}/chains/{chainId}/applications/{appId}
  * - WebSocket: ws://{host}:{port}/ws
  * - Node Service: http://{host}:{port}/
+ * 
+ * This client integrates with the endpoint manager for flexible configuration.
+ * It can work with:
+ * - Local development node services
+ * - Remote deployed node services
+ * - Any Linera node service URL
  */
 
-// Configuration from environment
-const LINERA_HOST = import.meta.env.VITE_LINERA_HOST || 'localhost';
-const LINERA_PORT = import.meta.env.VITE_LINERA_PORT || '8080';
-const LINERA_CHAIN_ID = import.meta.env.VITE_LINERA_CHAIN_ID || '';
-const LINERA_APP_ID = import.meta.env.VITE_LINERA_APP_ID || '';
-const USE_HTTPS = import.meta.env.VITE_LINERA_USE_HTTPS === 'true';
-
-// Build base URLs
-const HTTP_PROTOCOL = USE_HTTPS ? 'https' : 'http';
-const WS_PROTOCOL = USE_HTTPS ? 'wss' : 'ws';
+import { endpointManager, getEndpointConfig, type EndpointConfig } from './endpointConfig';
 
 export interface LineraClientConfig {
+  // Base URL for node service (e.g., http://localhost:8080 or https://node.example.com)
+  nodeServiceUrl?: string;
+  chainId: string;
+  appId: string;
+}
+
+// For backward compatibility
+export interface LegacyLineraClientConfig {
   host: string;
   port: string | number;
   chainId: string;
@@ -51,29 +64,42 @@ export interface NotificationEvent {
  */
 export class LineraClient {
   private config: LineraClientConfig;
-  private httpProtocol: string;
-  private wsProtocol: string;
+  private nodeServiceUrl: string;
 
-  constructor(config?: Partial<LineraClientConfig>) {
-    this.config = {
-      host: config?.host || LINERA_HOST,
-      port: config?.port || LINERA_PORT,
-      chainId: config?.chainId || LINERA_CHAIN_ID,
-      appId: config?.appId || LINERA_APP_ID,
-      useHttps: config?.useHttps ?? USE_HTTPS,
-    };
-    this.httpProtocol = this.config.useHttps ? 'https' : 'http';
-    this.wsProtocol = this.config.useHttps ? 'wss' : 'ws';
+  constructor(config?: Partial<LineraClientConfig> | Partial<LegacyLineraClientConfig>) {
+    // Get endpoint configuration
+    const endpointConfig = getEndpointConfig();
+    
+    // Handle legacy config format (host + port)
+    if (config && 'host' in config) {
+      const legacyConfig = config as LegacyLineraClientConfig;
+      const protocol = legacyConfig.useHttps ? 'https' : 'http';
+      this.nodeServiceUrl = `${protocol}://${legacyConfig.host}:${legacyConfig.port}`;
+      this.config = {
+        nodeServiceUrl: this.nodeServiceUrl,
+        chainId: legacyConfig.chainId || endpointConfig.chainId,
+        appId: legacyConfig.appId || endpointConfig.appId,
+      };
+    } else {
+      // Modern config format or use endpoint manager
+      const modernConfig = config as Partial<LineraClientConfig> | undefined;
+      this.nodeServiceUrl = modernConfig?.nodeServiceUrl || endpointConfig.graphqlUrl || '';
+      this.config = {
+        nodeServiceUrl: this.nodeServiceUrl,
+        chainId: modernConfig?.chainId || endpointConfig.chainId,
+        appId: modernConfig?.appId || endpointConfig.appId,
+      };
+    }
   }
 
   // ==================== URL BUILDERS ====================
 
   /**
    * Get the base URL for the node service
-   * Pattern: http://localhost:8080/
+   * Pattern: http://localhost:8080/ or https://node.example.com/
    */
   getNodeServiceUrl(): string {
-    return `${this.httpProtocol}://${this.config.host}:${this.config.port}`;
+    return this.nodeServiceUrl;
   }
 
   /**
@@ -83,15 +109,40 @@ export class LineraClient {
   getApplicationUrl(chainId?: string, appId?: string): string {
     const chain = chainId || this.config.chainId;
     const app = appId || this.config.appId;
-    return `${this.getNodeServiceUrl()}/chains/${chain}/applications/${app}`;
+    
+    // If the URL already contains the full path, return as-is
+    if (this.nodeServiceUrl.includes('/chains/')) {
+      return this.nodeServiceUrl;
+    }
+    
+    return `${this.nodeServiceUrl}/chains/${chain}/applications/${app}`;
   }
 
   /**
    * Get the WebSocket URL for subscriptions
-   * Pattern: ws://localhost:8080/ws
+   * Pattern: ws://localhost:8080/ws or wss://node.example.com/ws
    */
   getWebSocketUrl(): string {
-    return `${this.wsProtocol}://${this.config.host}:${this.config.port}/ws`;
+    if (!this.nodeServiceUrl) return '';
+    
+    try {
+      const url = new URL(this.nodeServiceUrl);
+      url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
+      url.pathname = '/ws';
+      return url.toString();
+    } catch {
+      // Fallback for relative URLs or invalid URLs
+      const isHttps = this.nodeServiceUrl.startsWith('https');
+      const wsProtocol = isHttps ? 'wss' : 'ws';
+      return this.nodeServiceUrl.replace(/^https?/, wsProtocol) + '/ws';
+    }
+  }
+
+  /**
+   * Check if the client has a valid node service URL
+   */
+  hasNodeService(): boolean {
+    return !!this.nodeServiceUrl && this.nodeServiceUrl.length > 0;
   }
 
   // ==================== GRAPHQL QUERIES ====================

@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { getAppMode, setAppMode, checkAndSetMode, initializeApp } from '../services/api';
+import { initializeApp } from '../services/api';
 import { checkFaucetConnection, getFaucetVersion } from '../services/faucet';
-import type { AppMode } from '../services/localStorage';
+import { getEndpointConfig, isLiveMode, isConnecting } from '../services/endpointConfig';
+
+type ConnectionMode = 'live' | 'connecting';
 
 interface ConnectionStatus {
-  mode: AppMode;
+  mode: ConnectionMode;
   faucetConnected: boolean;
   faucetVersion?: string;
   chainId?: string;
@@ -12,7 +14,7 @@ interface ConnectionStatus {
 
 export const ConnectionStatusBadge: React.FC = () => {
   const [status, setStatus] = useState<ConnectionStatus>({
-    mode: getAppMode(),
+    mode: isLiveMode() ? 'live' : 'connecting',
     faucetConnected: false,
   });
   const [isExpanded, setIsExpanded] = useState(false);
@@ -31,12 +33,14 @@ export const ConnectionStatusBadge: React.FC = () => {
         faucetVersion = version.version;
       }
       
-      const mode = await checkAndSetMode();
+      const config = getEndpointConfig();
+      const mode: ConnectionMode = config.mode === 'live' ? 'live' : 'connecting';
       
       setStatus({
         mode,
         faucetConnected,
         faucetVersion,
+        chainId: config.chainId,
       });
     } catch (error) {
       console.error('Failed to check connection:', error);
@@ -47,8 +51,6 @@ export const ConnectionStatusBadge: React.FC = () => {
     switch (status.mode) {
       case 'live':
         return 'bg-green-500';
-      case 'demo':
-        return 'bg-yellow-500';
       case 'connecting':
         return 'bg-blue-500 animate-pulse';
       default:
@@ -60,8 +62,6 @@ export const ConnectionStatusBadge: React.FC = () => {
     switch (status.mode) {
       case 'live':
         return '🔗 Live on Linera';
-      case 'demo':
-        return '🎮 Demo Mode';
       case 'connecting':
         return '⏳ Connecting...';
       default:
@@ -88,7 +88,7 @@ export const ConnectionStatusBadge: React.FC = () => {
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
               <span className="text-gray-600 dark:text-gray-400">Mode:</span>
-              <span className={`font-medium ${status.mode === 'live' ? 'text-green-600' : 'text-yellow-600'}`}>
+              <span className={`font-medium ${status.mode === 'live' ? 'text-green-600' : 'text-blue-600'}`}>
                 {status.mode.toUpperCase()}
               </span>
             </div>
@@ -108,12 +108,20 @@ export const ConnectionStatusBadge: React.FC = () => {
                 </span>
               </div>
             )}
+
+            {status.chainId && (
+              <div className="flex justify-between">
+                <span className="text-gray-600 dark:text-gray-400">Chain:</span>
+                <span className="text-gray-900 dark:text-white font-mono text-xs truncate max-w-[150px]" title={status.chainId}>
+                  {status.chainId.substring(0, 16)}...
+                </span>
+              </div>
+            )}
           </div>
 
-          {status.mode === 'demo' && (
-            <div className="mt-3 p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded text-xs text-yellow-800 dark:text-yellow-200">
-              <strong>Demo Mode:</strong> Data is stored locally in your browser. 
-              Connect to a Linera node to sync with the blockchain.
+          {status.mode === 'connecting' && (
+            <div className="mt-3 p-2 bg-blue-50 dark:bg-blue-900/20 rounded text-xs text-blue-800 dark:text-blue-200">
+              <strong>Connecting:</strong> Attempting to connect to Linera blockchain...
             </div>
           )}
 

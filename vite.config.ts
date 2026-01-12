@@ -8,6 +8,17 @@ export default defineConfig(({ mode }) => {
       server: {
         port: 3000,
         host: '0.0.0.0',
+        headers: {
+          // Required for SharedArrayBuffer - must use require-corp for crossOriginIsolated
+          'Cross-Origin-Embedder-Policy': 'require-corp',
+          'Cross-Origin-Opener-Policy': 'same-origin',
+        },
+      },
+      preview: {
+        headers: {
+          'Cross-Origin-Embedder-Policy': 'require-corp',
+          'Cross-Origin-Opener-Policy': 'same-origin',
+        },
       },
       plugins: [react()],
       define: {
@@ -18,6 +29,29 @@ export default defineConfig(({ mode }) => {
         alias: {
           '@': path.resolve(__dirname, '.'),
         }
-      }
+      },
+      optimizeDeps: {
+        // Don't optimize @linera/client - it has WASM that needs special handling
+        exclude: ['@linera/client'],
+        esbuildOptions: {
+          target: 'esnext',
+        },
+      },
+      esbuild: {
+        supported: {
+          'top-level-await': true,
+        },
+      },
+      build: {
+        target: 'esnext',
+        commonjsOptions: {
+          transformMixedEsModules: true,
+        },
+      },
+      // Handle @linera/client as an ES module
+      ssr: {
+        noExternal: ['@linera/client'],
+      },
+      assetsInclude: ['**/*.wasm'],
     };
 });

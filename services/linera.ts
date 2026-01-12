@@ -1,31 +1,44 @@
-// Linera GraphQL client for connecting React frontend to Linera blockchain
-// This module provides typed GraphQL queries and mutations for your Linera application
+/**
+ * @deprecated This file is deprecated and should be deleted.
+ * The app now uses the WASM adapter from './linera/index' instead.
+ * This file is excluded from TypeScript compilation via tsconfig.json.
+ * 
+ * TODO: Delete this file when able to modify filesystem.
+ */
 
-const GRAPHQL_URL = import.meta.env.VITE_LINERA_GRAPHQL_URL || 'http://localhost:8081';
+/**
+ * @deprecated This module uses the old HTTP-based approach.
+ * Use the WASM adapter from './linera/index' instead.
+ * 
+ * This file is kept for backward compatibility but should not be used.
+ * The WASM client connects directly to the faucet and blockchain validators.
+ */
+
+// Linera GraphQL client for connecting React frontend to Linera blockchain
+// NOTE: This is the LEGACY approach. Use lineraAdapter from './linera/index' instead.
+
+const GRAPHQL_URL = import.meta.env.VITE_LINERA_GRAPHQL_URL || '';
 const CHAIN_ID = import.meta.env.VITE_LINERA_CHAIN_ID || '';
 const APP_ID = import.meta.env.VITE_LINERA_APP_ID || '';
-const PORT = import.meta.env.VITE_LINERA_PORT || '8081';
-
-// Detect if we're in production (Render/Vercel) or local development
-const isProduction = GRAPHQL_URL.startsWith('https://') || 
-                     (typeof window !== 'undefined' && window.location.protocol === 'https:');
 
 // Build the base URL for the Linera service
 const getBaseUrl = () => {
+  if (!GRAPHQL_URL) {
+    console.warn('⚠️ VITE_LINERA_GRAPHQL_URL not set. Use WASM adapter instead.');
+    return '';
+  }
   // If GRAPHQL_URL already contains the full path, extract base
   if (GRAPHQL_URL.includes('/chains/')) {
     return GRAPHQL_URL.split('/chains/')[0];
   }
-  // If it's a full URL (production), use it
-  if (GRAPHQL_URL.startsWith('http')) {
-    return GRAPHQL_URL;
-  }
-  // Otherwise, construct localhost URL
-  return `http://localhost:${PORT}`;
+  return GRAPHQL_URL;
 };
 
 // Build the application-specific URL
 const getAppUrl = () => {
+  if (!GRAPHQL_URL) {
+    return '';
+  }
   // If GRAPHQL_URL already contains the full path, use it directly
   if (GRAPHQL_URL.includes('/chains/')) {
     return GRAPHQL_URL;
@@ -40,11 +53,7 @@ const getAppUrl = () => {
 
 // Get the node service URL (without application path)
 const getNodeServiceUrl = () => {
-  // In production, use the configured URL
-  if (isProduction) {
-    return getBaseUrl();
-  }
-  return `http://localhost:${PORT}`;
+  return getBaseUrl();
 };
 
 interface GraphQLResponse<T> {

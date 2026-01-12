@@ -25,5 +25,15 @@
     },
     "allowImportingTsExtensions": true,
     "noEmit": true
-  }
+  },
+  "exclude": [
+    "node_modules",
+    "backend",
+    "services/localStorage.ts",
+    "services/linera.ts",
+    "services/lineraClient.ts",
+    "services/LineraProvider.tsx",
+    "services/useMarketplace.ts",
+    "linera-contracts"
+  ]
 }

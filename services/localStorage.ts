@@ -1,4 +1,12 @@
 /**
+ * @deprecated This file is deprecated and should be deleted.
+ * Demo mode has been removed - the app now operates blockchain-only.
+ * This file is excluded from TypeScript compilation via tsconfig.json.
+ * 
+ * TODO: Delete this file when able to modify filesystem.
+ */
+
+/**
  * Local Storage Service
  * 
  * Provides offline/demo mode functionality by storing jobs and agents locally.

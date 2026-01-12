@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import * as Linera from '../services/linera';
+import { lineraAdapter } from '../services/linera/index';
 
 interface ChainInfo {
   chainId: string;
@@ -13,7 +13,7 @@ const LineraStatus: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   const chainId = import.meta.env.VITE_LINERA_CHAIN_ID;
-  const appId = import.meta.env.VITE_LINERA_APP_ID;
+  const appId = import.meta.env.VITE_LINERA_APP_ID || '';
   const useLinera = import.meta.env.VITE_USE_LINERA === 'true';
 
   useEffect(() => {
@@ -22,28 +22,44 @@ const LineraStatus: React.FC = () => {
       return;
     }
 
-    const checkConnection = async () => {
+    const checkConnection = () => {
       try {
-        const healthy = await Linera.healthCheck();
-        if (healthy) {
-          const chains = await Linera.getChains();
+        // Check if WASM adapter is connected
+        const isConnected = lineraAdapter.isConnected();
+        const isAppConnected = lineraAdapter.isApplicationConnected();
+        
+        if (isConnected || isAppConnected) {
+          const connection = lineraAdapter.getConnection();
           setChainInfo({
-            chainId: chainId || 'Unknown',
+            chainId: connection?.chainId || chainId || 'Unknown',
             connected: true,
           });
+          setError(null);
         } else {
-          setError('Cannot connect to Linera node');
+          // Not connected yet - this is normal before user clicks Connect
+          setChainInfo(null);
+          setError(null);
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Connection failed');
+        setError(err instanceof Error ? err.message : 'Connection check failed');
       } finally {
         setLoading(false);
       }
     };
 
+    // Initial check
     checkConnection();
-    const interval = setInterval(checkConnection, 10000);
-    return () => clearInterval(interval);
+    
+    // Listen for connection changes (method is 'subscribe', not 'addListener')
+    const unsubscribe = lineraAdapter.subscribe(checkConnection);
+    
+    // Periodic check
+    const interval = setInterval(checkConnection, 5000);
+    
+    return () => {
+      unsubscribe();
+      clearInterval(interval);
+    };
   }, [useLinera, chainId]);
 
   if (!useLinera) {
@@ -70,8 +86,25 @@ const LineraStatus: React.FC = () => {
             <div className="w-5 h-5 border-2 border-mc-diamond border-t-transparent rounded-full animate-spin"></div>
           </div>
           <div>
-            <div className="text-mc-diamond text-[10px] uppercase font-bold animate-pulse">Connecting...</div>
-            <div className="text-mc-text-dark text-[9px]">Establishing connection to Linera blockchain</div>
+            <div className="text-mc-diamond text-[10px] uppercase font-bold animate-pulse">Initializing...</div>
+            <div className="text-mc-text-dark text-[9px]">Setting up Linera connection</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // No connection yet - show prompt to connect
+  if (!chainInfo && !error) {
+    return (
+      <div className="bg-mc-amethyst/10 border-2 border-mc-amethyst p-3 mb-4">
+        <div className="flex items-center gap-3">
+          <div className="text-xl">🔗</div>
+          <div>
+            <div className="text-mc-amethyst text-[10px] uppercase font-bold">Ready to Connect</div>
+            <div className="text-mc-text-dark text-[9px]">
+              Click "Connect Wallet" to connect to Linera Testnet
+            </div>
           </div>
         </div>
       </div>
@@ -84,7 +117,7 @@ const LineraStatus: React.FC = () => {
         <div className="flex items-center gap-3">
           <div className="text-xl">❌</div>
           <div className="flex-1">
-            <div className="text-mc-redstone text-[10px] uppercase font-bold">Connection Failed</div>
+            <div className="text-mc-redstone text-[10px] uppercase font-bold">Connection Error</div>
             <div className="text-mc-text-dark text-[9px]">{error}</div>
           </div>
           <button 

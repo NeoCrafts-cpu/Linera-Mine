@@ -1,4 +1,12 @@
 /**
+ * @deprecated This file is deprecated and should be deleted.
+ * The app now uses the WASM adapter from './linera/index' instead.
+ * This file is excluded from TypeScript compilation via tsconfig.json.
+ * 
+ * TODO: Delete this file when able to modify filesystem.
+ */
+
+/**
  * Job Marketplace Hooks for Linera
  * 
  * Custom hooks for the Job Marketplace application following Linera example patterns.
