@@ -57,11 +57,12 @@ if (typeof window === 'undefined') {
                 })
                 .catch((e) => {
                     console.error('coi-serviceworker fetch error:', e);
-                    // Return a simple error response instead of re-fetching
-                    // The original request body may have been consumed
-                    return new Response(null, {
-                        status: 0,
-                        statusText: 'Network error'
+                    // Return a 503 Service Unavailable error response
+                    // The original request may have failed due to network issues
+                    return new Response('Network error', {
+                        status: 503,
+                        statusText: 'Service Unavailable',
+                        headers: { 'Content-Type': 'text/plain' }
                     });
                 })
         );
