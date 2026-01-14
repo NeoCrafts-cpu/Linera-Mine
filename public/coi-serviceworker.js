@@ -57,8 +57,12 @@ if (typeof window === 'undefined') {
                 })
                 .catch((e) => {
                     console.error('coi-serviceworker fetch error:', e);
-                    // Return the original request to let the browser handle the error
-                    return fetch(request);
+                    // Return a simple error response instead of re-fetching
+                    // The original request body may have been consumed
+                    return new Response(null, {
+                        status: 0,
+                        statusText: 'Network error'
+                    });
                 })
         );
     });

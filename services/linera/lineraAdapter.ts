@@ -177,37 +177,28 @@ class LineraAdapterClass {
       console.log('👛 Creating Linera wallet...');
       const wallet = await faucet.createWallet();
       
-      // Step 5: Claim a microchain for the user's address
-      console.log(`⛓️ Claiming microchain for ${userAddress}...`);
-      const chainId = await faucet.claimChain(wallet, userAddress);
-      console.log(`✅ Claimed chain: ${chainId}`);
-      
-      // Step 6: Create auto-signer for automatic signing without popups
+      // Step 5: Create auto-signer FIRST (for automatic signing without popups)
+      // This is the key pattern from Linera-Arcade
       console.log('🔑 Setting up auto-signing...');
       const autoSigner = signerModule.PrivateKey.createRandom();
       const autoSignerAddress = autoSigner.address();
       console.log(`   Auto-signer address: ${autoSignerAddress}`);
       
+      // Step 6: Claim a microchain for the AUTO-SIGNER address (not user address!)
+      // This makes the autoSigner the initial owner, so it can sign immediately
+      console.log(`⛓️ Claiming microchain for auto-signer...`);
+      const chainId = await faucet.claimChain(wallet, autoSignerAddress);
+      console.log(`✅ Claimed chain: ${chainId}`);
+      
       // Step 7: Create Linera client with auto-signer
       console.log('🔗 Creating Linera client with auto-signing...');
       const client = await new Client(wallet, autoSigner);
       
-      // Step 8: Connect to chain and add auto-signer as owner
-      console.log('⛓️ Connecting to chain...');
-      const chain = await client.chain(chainId);
-      
-      // Add auto-signer as chain owner (enables automatic transactions)
-      console.log('✍️ Adding auto-signer as chain owner...');
-      try {
-        await chain.addOwner(autoSignerAddress);
-        console.log('✅ Auto-signing enabled!');
-      } catch (ownerError) {
-        console.warn('⚠️ Could not add auto-signer as owner (may already exist):', ownerError);
-      }
-      
-      // Set auto-signer as default owner for automatic operations
+      // Step 8: Set auto-signer as default owner in wallet
+      console.log('⛓️ Configuring wallet...');
       try {
         await wallet.setOwner(chainId, autoSignerAddress);
+        console.log('✅ Wallet configured for auto-signing!');
       } catch (setOwnerError) {
         console.warn('⚠️ Could not set default owner:', setOwnerError);
       }
@@ -224,8 +215,8 @@ class LineraAdapterClass {
       
       console.log('✅ Connected to Linera successfully with auto-signing!');
       console.log(`   Chain ID: ${chainId}`);
-      console.log(`   Address: ${userAddress}`);
-      console.log(`   Auto-Signer: ${autoSignerAddress}`);
+      console.log(`   User Address: ${userAddress}`);
+      console.log(`   Auto-Signer (chain owner): ${autoSignerAddress}`);
       
       this.notifyListeners();
       return this.connection;
