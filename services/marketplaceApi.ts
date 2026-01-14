@@ -82,6 +82,10 @@ class MarketplaceApiClass {
   
   /**
    * Get all jobs with optional filtering
+   * 
+   * WORKAROUND: Due to a contract bug where next_job_id starts at 0 on new chains
+   * but the jobs() query loops from 1..next_id, we also fetch job ID 0 explicitly
+   * and include it if it exists.
    */
   async getJobs(options?: {
     filter?: {
@@ -95,6 +99,7 @@ class MarketplaceApiClass {
     limit?: number;
     offset?: number;
   }): Promise<Job[]> {
+    // Fetch jobs using the standard query
     const result = await lineraAdapter.query<JobsResponse>(
       Queries.GET_JOBS,
       {
@@ -105,7 +110,24 @@ class MarketplaceApiClass {
         offset: options?.offset,
       }
     );
-    return result.jobs || [];
+    
+    let jobs = result.jobs || [];
+    
+    // WORKAROUND: Also try to fetch job ID 0 which may be missed by the contract's loop
+    try {
+      const job0Result = await lineraAdapter.query<JobResponse>(
+        Queries.GET_JOB,
+        { id: 0 }
+      );
+      if (job0Result.job && !jobs.some(j => j.id === 0)) {
+        console.log('📦 Found job ID 0 (workaround for contract bug)');
+        jobs = [job0Result.job, ...jobs];
+      }
+    } catch (e) {
+      // Job 0 doesn't exist, which is fine
+    }
+    
+    return jobs;
   }
 
   /**

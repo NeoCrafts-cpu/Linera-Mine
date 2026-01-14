@@ -169,7 +169,9 @@ impl QueryRoot {
 
         let next_id = *self.state.next_job_id().get();
 
-        for id in 1..next_id {
+        // Start from 0 to handle both uninitialized state (first job ID = 0)
+        // and initialized state (first job ID = 1)
+        for id in 0..next_id.max(100) {
             if let Ok(Some(job)) = self.state.jobs().get(&id).await {
                 jobs.push(job.clone());
             }
@@ -287,7 +289,7 @@ impl QueryRoot {
         let mut jobs = Vec::new();
         let next_id = *self.state.next_job_id().get();
 
-        for id in 1..next_id {
+        for id in 0..next_id.max(100) {
             if let Ok(Some(job)) = self.state.jobs().get(&id).await {
                 if job.category == category {
                     jobs.push(job.clone());
@@ -303,7 +305,7 @@ impl QueryRoot {
         let query_lower = query.to_lowercase();
         let next_id = *self.state.next_job_id().get();
 
-        for id in 1..next_id {
+        for id in 0..next_id.max(100) {
             if let Ok(Some(job)) = self.state.jobs().get(&id).await {
                 if job.title.to_lowercase().contains(&query_lower)
                     || job.description.to_lowercase().contains(&query_lower)
@@ -321,7 +323,7 @@ impl QueryRoot {
         let mut count = 0u64;
         let next_id = *self.state.next_job_id().get();
 
-        for id in 1..next_id {
+        for id in 0..next_id.max(100) {
             if let Ok(Some(job)) = self.state.jobs().get(&id).await {
                 if let Some(ref s) = status {
                     if job.status == *s {
@@ -547,7 +549,7 @@ impl QueryRoot {
         let mut ratings = Vec::new();
         let next_id = *self.state.next_rating_id().get();
 
-        for id in 1..next_id {
+        for id in 0..next_id.max(100) {
             if let Ok(Some(rating)) = self.state.ratings().get(&id).await {
                 ratings.push(rating.clone());
             }
@@ -585,7 +587,7 @@ impl QueryRoot {
         let mut escrows = Vec::new();
         let next_id = *self.state.next_job_id().get();
 
-        for id in 1..next_id {
+        for id in 0..next_id.max(100) {
             if let Ok(Some(escrow)) = self.state.escrow().get(&id).await {
                 if escrow.status == job_marketplace::EscrowStatus::Locked {
                     escrows.push(escrow.clone());
@@ -602,7 +604,7 @@ impl QueryRoot {
         let mut disputes = Vec::new();
         let next_id = *self.state.next_dispute_id().get();
 
-        for id in 1..next_id {
+        for id in 0..next_id.max(100) {
             if let Ok(Some(dispute)) = self.state.disputes().get(&id).await {
                 disputes.push(dispute.clone());
             }
@@ -641,7 +643,7 @@ impl QueryRoot {
         let mut count = 0u64;
         let next_id = *self.state.next_dispute_id().get();
 
-        for id in 1..next_id {
+        for id in 0..next_id.max(100) {
             if let Ok(Some(dispute)) = self.state.disputes().get(&id).await {
                 if dispute.status == DisputeStatus::Open || dispute.status == DisputeStatus::UnderReview {
                     count += 1;
@@ -658,7 +660,7 @@ impl QueryRoot {
         let mut messages = Vec::new();
         let next_id = *self.state.next_message_id().get();
 
-        for id in 1..next_id {
+        for id in 0..next_id.max(100) {
             if let Ok(Some(msg)) = self.state.messages().get(&id).await {
                 if msg.job_id == job_id {
                     messages.push(msg.clone());
@@ -676,7 +678,7 @@ impl QueryRoot {
         let mut count = 0u64;
         let next_id = *self.state.next_message_id().get();
 
-        for id in 1..next_id {
+        for id in 0..next_id.max(100) {
             if let Ok(Some(msg)) = self.state.messages().get(&id).await {
                 if !msg.read && format!("{:?}", msg.recipient).contains(&user) {
                     count += 1;
@@ -766,7 +768,7 @@ impl QueryRoot {
             std::collections::HashMap::new();
         let next_id = *self.state.next_job_id().get();
 
-        for id in 1..next_id {
+        for id in 0..next_id.max(100) {
             if let Ok(Some(job)) = self.state.jobs().get(&id).await {
                 *category_counts.entry(job.category).or_insert(0) += 1;
             }
