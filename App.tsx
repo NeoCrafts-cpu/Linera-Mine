@@ -49,8 +49,9 @@ const App: React.FC = () => {
 
   // This effect safely handles inconsistent states. If the view is 'job-details'
   // but no job is selected, it redirects to the marketplace.
+  // Note: Using === null check instead of !selectedJobId because job ID 0 is valid
   useEffect(() => {
-    if (activeView === 'job-details' && !selectedJobId) {
+    if (activeView === 'job-details' && selectedJobId === null) {
       setActiveView('marketplace');
     }
     if (activeView === 'agent-profile' && !selectedAgentOwner) {
@@ -124,9 +125,9 @@ const App: React.FC = () => {
           />
         ) : null;
       case 'job-details':
-        // Only render JobDetails if an ID is present.
-        // Otherwise, render null while the useEffect handles the view change.
-        return selectedJobId ? <JobDetails jobId={selectedJobId} onBack={handleBack} /> : null;
+        // Only render JobDetails if an ID is present (including ID 0).
+        // Use !== null check because job ID 0 is valid.
+        return selectedJobId !== null ? <JobDetails jobId={selectedJobId} onBack={handleBack} /> : null;
       default:
         return <Home setView={setActiveView} />;
     }
