@@ -823,8 +823,42 @@ export async function getAgentsFromChain(): Promise<AgentProfile[]> {
 
 /**
  * Fetch a specific job from the blockchain
+ * Uses the new WASM adapter when connected
  */
 export async function getJobFromChain(id: number): Promise<Job | undefined> {
+  // Try using the WASM adapter first
+  if (isAdapterConnected()) {
+    try {
+      console.log(`📦 getJobFromChain: fetching job ID ${id} via WASM adapter`);
+      const job = await marketplaceApi.getJob(id);
+      console.log(`📦 getJobFromChain: received job:`, job);
+      
+      if (!job) {
+        console.log(`📦 getJobFromChain: job ${id} not found`);
+        return undefined;
+      }
+      
+      return {
+        ...job,
+        status: normalizeJobStatus(job.status),
+        payment: typeof job.payment === 'string' ? parseFloat(job.payment) : (job.payment || 0),
+        id: typeof job.id === 'string' ? parseInt(job.id, 10) : job.id,
+        bids: (job.bids || []).map((bid: any) => ({
+          ...bid,
+          bidId: typeof bid.bidId === 'string' ? parseInt(bid.bidId, 10) : bid.bidId,
+          amount: typeof bid.amount === 'string' ? parseFloat(bid.amount) : (bid.amount || 0),
+          estimatedDays: typeof bid.estimatedDays === 'string' ? parseInt(bid.estimatedDays, 10) : (bid.estimatedDays || 0),
+        })),
+        milestones: job.milestones || [],
+        tags: job.tags || [],
+      };
+    } catch (error) {
+      console.error('Failed to fetch job via WASM adapter:', error);
+      return undefined;
+    }
+  }
+
+  // Fallback to HTTP endpoint (deprecated)
   const query = `
     query GetJob($id: Int!) {
       job(id: $id) {
@@ -862,7 +896,7 @@ export async function getJobFromChain(id: number): Promise<Job | undefined> {
   `;
   
   try {
-    console.log(`📦 getJobFromChain: fetching job ID ${id}`);
+    console.log(`📦 getJobFromChain: fetching job ID ${id} via HTTP`);
     const data = await executeApplicationQuery(query, { id });
     console.log(`📦 getJobFromChain: received data:`, data);
     if (!data.job) {
