@@ -57,9 +57,10 @@ export const PlaceBidModal: React.FC<PlaceBidModalProps> = ({ job, onClose, onBi
         await placeBid(job.id);
       }
       setSuccess(true);
+      // Wait a bit longer for blockchain state to propagate before refreshing
       setTimeout(() => {
         onBidPlaced();
-      }, 1500);
+      }, 3000);
     } catch (err) {
       console.error('Failed to place bid:', err);
       setError(err instanceof Error ? err.message : 'Failed to place bid. Please try again.');
