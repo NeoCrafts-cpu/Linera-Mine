@@ -127,10 +127,23 @@ export function isAuthenticated(): boolean {
 }
 
 /**
- * Get current user's address
+ * Get current user's address for blockchain operations
+ * 
+ * IMPORTANT: Returns the AUTO-SIGNER address when connected via WASM adapter,
+ * because that's the address used as "client" or "agent" in blockchain records.
+ * The auto-signer is the chain owner that signs all transactions.
  */
 export function getCurrentUserAddress(): Owner | null {
-  // First check if wallet is connected via API
+  // When connected via WASM adapter, use the auto-signer address
+  // This is the address that appears in blockchain records
+  if (isAdapterConnected()) {
+    const autoSignerAddr = lineraAdapter.getAutoSignerAddress();
+    if (autoSignerAddr) {
+      return autoSignerAddr as Owner;
+    }
+  }
+  
+  // Fallback: check if wallet is connected via API
   if (currentWalletAuth?.address) {
     return currentWalletAuth.address;
   }
@@ -849,10 +862,16 @@ export async function getJobFromChain(id: number): Promise<Job | undefined> {
   `;
   
   try {
+    console.log(`📦 getJobFromChain: fetching job ID ${id}`);
     const data = await executeApplicationQuery(query, { id });
-    if (!data.job) return undefined;
+    console.log(`📦 getJobFromChain: received data:`, data);
+    if (!data.job) {
+      console.log(`📦 getJobFromChain: job ${id} not found in response`);
+      return undefined;
+    }
     
     const job = data.job;
+    console.log(`📦 getJobFromChain: found job:`, job);
     return {
       ...job,
       status: normalizeJobStatus(job.status),

@@ -445,10 +445,18 @@ class LineraAdapterClass {
   }
 
   /**
-   * Get connected wallet address
+   * Get connected wallet address (the original user address)
    */
   getAddress(): string | null {
     return this.connection?.address ?? null;
+  }
+
+  /**
+   * Get the auto-signer address (the chain owner used for blockchain transactions)
+   * This is the address that appears as "client" or "agent" in blockchain records
+   */
+  getAutoSignerAddress(): string | null {
+    return this.connection?.autoSignerAddress ?? null;
   }
 
   /**
