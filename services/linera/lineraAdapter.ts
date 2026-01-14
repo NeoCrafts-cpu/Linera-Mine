@@ -63,6 +63,8 @@ export interface LineraConnection {
   faucet: Faucet;
   chainId: string;
   address: string;
+  /** Auto-signer address for automatic signing without popups */
+  autoSignerAddress?: string;
 }
 
 /**
@@ -165,7 +167,7 @@ class LineraAdapterClass {
       
       // Step 2: Dynamically load @linera/client
       const lineraModule = await getLineraClient();
-      const { Faucet, Client } = lineraModule;
+      const { Faucet, Client, signer: signerModule } = lineraModule;
       
       // Step 3: Create faucet connection
       console.log(`📡 Connecting to faucet: ${faucetUrl}`);
@@ -180,9 +182,35 @@ class LineraAdapterClass {
       const chainId = await faucet.claimChain(wallet, userAddress);
       console.log(`✅ Claimed chain: ${chainId}`);
       
-      // Step 6: Create Linera client
-      console.log('🔗 Creating Linera client...');
-      const client = await new Client(wallet);
+      // Step 6: Create auto-signer for automatic signing without popups
+      console.log('🔑 Setting up auto-signing...');
+      const autoSigner = signerModule.PrivateKey.createRandom();
+      const autoSignerAddress = autoSigner.address();
+      console.log(`   Auto-signer address: ${autoSignerAddress}`);
+      
+      // Step 7: Create Linera client with auto-signer
+      console.log('🔗 Creating Linera client with auto-signing...');
+      const client = await new Client(wallet, autoSigner);
+      
+      // Step 8: Connect to chain and add auto-signer as owner
+      console.log('⛓️ Connecting to chain...');
+      const chain = await client.chain(chainId);
+      
+      // Add auto-signer as chain owner (enables automatic transactions)
+      console.log('✍️ Adding auto-signer as chain owner...');
+      try {
+        await chain.addOwner(autoSignerAddress);
+        console.log('✅ Auto-signing enabled!');
+      } catch (ownerError) {
+        console.warn('⚠️ Could not add auto-signer as owner (may already exist):', ownerError);
+      }
+      
+      // Set auto-signer as default owner for automatic operations
+      try {
+        await wallet.setOwner(chainId, autoSignerAddress);
+      } catch (setOwnerError) {
+        console.warn('⚠️ Could not set default owner:', setOwnerError);
+      }
       
       // Store connection
       this.connection = {
@@ -191,11 +219,13 @@ class LineraAdapterClass {
         faucet,
         chainId,
         address: userAddress,
+        autoSignerAddress,
       };
       
-      console.log('✅ Connected to Linera successfully!');
+      console.log('✅ Connected to Linera successfully with auto-signing!');
       console.log(`   Chain ID: ${chainId}`);
       console.log(`   Address: ${userAddress}`);
+      console.log(`   Auto-Signer: ${autoSignerAddress}`);
       
       this.notifyListeners();
       return this.connection;
