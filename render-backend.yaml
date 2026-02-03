@@ -6,7 +6,7 @@ services:
   - type: web
     name: linera-mine-backend
     runtime: docker
-    dockerfilePath: ./backend/Dockerfile.simple
+    dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend
     plan: starter  # $7/month - sufficient for backend API
     healthCheckPath: /health
