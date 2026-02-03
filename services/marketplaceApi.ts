@@ -402,6 +402,24 @@ class MarketplaceApiClass {
     return true;
   }
 
+  /**
+   * Submit work for a milestone (agent submits deliverable)
+   * Contract expects: jobId, milestoneId, deliveryNotes
+   */
+  async submitMilestone(jobId: number, milestoneId: number, deliveryNotes: string): Promise<boolean> {
+    await lineraAdapter.mutate(Queries.SUBMIT_MILESTONE, { jobId, milestoneId, deliveryNotes });
+    return true;
+  }
+
+  /**
+   * Approve a milestone (client approves deliverable)
+   * Contract expects: jobId, milestoneId
+   */
+  async approveMilestone(jobId: number, milestoneId: number): Promise<boolean> {
+    await lineraAdapter.mutate(Queries.APPROVE_MILESTONE, { jobId, milestoneId });
+    return true;
+  }
+
   // ===========================================================================
   // DISPUTE MUTATIONS
   // ===========================================================================

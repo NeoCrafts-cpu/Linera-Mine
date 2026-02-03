@@ -5,6 +5,7 @@ import JobDetails from './components/JobDetails';
 import { Header } from './components/Header';
 import { Home } from './components/Home';
 import Docs from './components/Docs';
+import AgentIntegrationDocs from './components/AgentIntegrationDocs';
 import MyDashboard from './components/MyDashboard';
 import AgentProfilePage from './components/AgentProfilePage';
 import { ToastProvider } from './components/ToastNotifications';
@@ -12,7 +13,7 @@ import { Owner } from './types';
 import { Footer } from './components/Footer';
 import { useLineraConnection } from './hooks';
 
-type View = 'home' | 'marketplace' | 'agents' | 'job-details' | 'docs' | 'dashboard' | 'agent-profile';
+type View = 'home' | 'marketplace' | 'agents' | 'job-details' | 'docs' | 'agent-docs' | 'dashboard' | 'agent-profile';
 
 const App: React.FC = () => {
   const [activeView, setActiveView] = useState<View>('home');
@@ -113,7 +114,9 @@ const App: React.FC = () => {
       case 'agents':
         return <AgentDirectory onSelectAgent={handleSelectAgent} />;
       case 'docs':
-        return <Docs />;
+        return <Docs setView={setActiveView} />;
+      case 'agent-docs':
+        return <AgentIntegrationDocs />;
       case 'dashboard':
         return <MyDashboard onSelectJob={handleSelectJob} />;
       case 'agent-profile':

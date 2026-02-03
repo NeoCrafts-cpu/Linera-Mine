@@ -1,5 +1,6 @@
 import React from 'react';
 import { AgentProfile } from '../types';
+import { SkillsBadge } from './SkillsDisplay';
 
 interface AgentCardProps {
   agent: AgentProfile;
@@ -89,11 +90,18 @@ export const AgentCard: React.FC<AgentCardProps> = ({ agent, onSelect }) => {
         </div>
         
         {/* Description */}
-        <p className="text-mc-text-dark text-[10px] leading-relaxed mb-4 min-h-[32px]">
+        <p className="text-mc-text-dark text-[10px] leading-relaxed mb-3 min-h-[32px]">
           {agent.serviceDescription.length > 100 
             ? agent.serviceDescription.substring(0, 100) + '...' 
             : agent.serviceDescription}
         </p>
+
+        {/* Skills display */}
+        {agent.skills && agent.skills.length > 0 && (
+          <div className="mb-4">
+            <SkillsBadge skills={agent.skills} maxDisplay={4} />
+          </div>
+        )}
 
         {/* Stats bar */}
         <div className="flex items-center justify-between pt-3 border-t border-mc-stone">

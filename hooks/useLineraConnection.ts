@@ -3,10 +3,12 @@
  * 
  * Manages Linera connection state.
  * Handles connect/disconnect and provides reactive state updates.
+ * Optionally syncs wallet data with backend for persistence.
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { lineraAdapter, type LineraConnection } from '../services/linera/index';
+import walletPersistence from '../services/walletPersistence';
 
 /**
  * Connection state returned by the hook
@@ -111,6 +113,21 @@ export function useLineraConnection(): LineraConnectionState {
       // Update state
       syncState();
       console.log('✅ Connected to Job Marketplace!');
+      
+      // Sync wallet to backend for persistence (fire and forget)
+      const conn = lineraAdapter.getConnection();
+      if (conn?.chainId && conn?.address) {
+        walletPersistence.connectWallet({
+          chainId: conn.chainId,
+          address: conn.address,
+        }).then(result => {
+          if (result.success) {
+            console.log('💾 Wallet synced to backend for persistence');
+          }
+        }).catch(err => {
+          console.warn('Backend sync failed (wallet still works):', err);
+        });
+      }
     } catch (err) {
       // Handle WASM panics gracefully
       const errorString = String(err);

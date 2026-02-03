@@ -373,6 +373,28 @@ export const COMPLETE_MILESTONE = `
 `;
 
 /**
+ * Submit work for a milestone (agent submits deliverable)
+ * 
+ * Contract params: jobId, milestoneId, deliveryNotes
+ */
+export const SUBMIT_MILESTONE = `
+  mutation SubmitMilestone($jobId: Int!, $milestoneId: Int!, $deliveryNotes: String!) {
+    submitMilestone(jobId: $jobId, milestoneId: $milestoneId, deliveryNotes: $deliveryNotes)
+  }
+`;
+
+/**
+ * Approve a milestone (client approves deliverable)
+ * 
+ * Contract params: jobId, milestoneId
+ */
+export const APPROVE_MILESTONE = `
+  mutation ApproveMilestone($jobId: Int!, $milestoneId: Int!) {
+    approveMilestone(jobId: $jobId, milestoneId: $milestoneId)
+  }
+`;
+
+/**
  * Rate an agent after job completion
  * 
  * Contract params: jobId, rating (u8: 1-5), review

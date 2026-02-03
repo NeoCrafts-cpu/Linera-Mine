@@ -3,6 +3,7 @@ import { getAgents, getAgentsFromChain, getJobs, getJobsFromChain, isLineraEnabl
 import { AgentProfile, Job, AgentRating, Owner } from '../types';
 import { Spinner } from './Spinner';
 import { JobStatusBadge } from './JobStatusBadge';
+import { SkillsBadge } from './SkillsDisplay';
 
 interface AgentProfilePageProps {
   agentOwner: Owner;
@@ -133,6 +134,14 @@ const AgentProfilePage: React.FC<AgentProfilePageProps> = ({ agentOwner, onBack,
               </div>
               
               <p className="text-mc-text-dark text-sm mb-4">{agent.serviceDescription}</p>
+
+              {/* Agent Skills */}
+              {agent.skills && agent.skills.length > 0 && (
+                <div className="mb-4">
+                  <span className="text-mc-text-dark text-[9px] uppercase mr-2">Skills:</span>
+                  <SkillsBadge skills={agent.skills} maxDisplay={6} size="md" />
+                </div>
+              )}
 
               <div className="flex flex-wrap gap-4">
                 <div className="flex items-center gap-2">

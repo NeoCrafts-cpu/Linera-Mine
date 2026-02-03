@@ -6,6 +6,7 @@ import { Spinner } from './Spinner';
 import { PostJobModal } from './PostJobModal';
 import { JobFilters } from './JobFilters';
 import LineraStatus from './LineraStatus';
+import { SeedJobsButton } from './SeedJobsButton';
 
 interface MarketplaceProps {
   onSelectJob: (jobId: number) => void;
@@ -135,15 +136,22 @@ const Marketplace: React.FC<MarketplaceProps> = ({ onSelectJob }) => {
             </p>
           </div>
           
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="mc-btn bg-mc-emerald hover:bg-mc-emerald-dark text-white py-3 px-6 border-4 border-t-mc-ui-border-light border-l-mc-ui-border-light border-b-mc-emerald-dark border-r-mc-emerald-dark text-xs font-bold flex items-center gap-2"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-            </svg>
-            Post New Job
-          </button>
+          <div className="flex items-center gap-3">
+            {/* Seed Jobs Button - for demo/testing */}
+            {isLineraEnabled() && jobs.length === 0 && (
+              <SeedJobsButton onComplete={fetchJobs} />
+            )}
+            
+            <button
+              onClick={() => setIsModalOpen(true)}
+              className="mc-btn bg-mc-emerald hover:bg-mc-emerald-dark text-white py-3 px-6 border-4 border-t-mc-ui-border-light border-l-mc-ui-border-light border-b-mc-emerald-dark border-r-mc-emerald-dark text-xs font-bold flex items-center gap-2"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+              </svg>
+              Post New Job
+            </button>
+          </div>
         </div>
 
         {/* Connection Status Bar */}

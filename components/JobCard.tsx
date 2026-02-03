@@ -1,6 +1,8 @@
 import React from 'react';
 import { Job } from '../types';
 import { JobStatusBadge } from './JobStatusBadge';
+import { EscrowBadge } from './EscrowStatusDisplay';
+import { SkillsBadge } from './SkillsDisplay';
 
 interface JobCardProps {
   job: Job;
@@ -52,13 +54,24 @@ export const JobCard: React.FC<JobCardProps> = ({ job, onSelectJob }) => {
           <span className="text-[9px] text-mc-text-dark bg-mc-stone px-2 py-1 rounded-sm">
             JOB #{job.id}
           </span>
-          <JobStatusBadge status={job.status} />
+          <div className="flex items-center gap-2">
+            <EscrowBadge job={job} />
+            <JobStatusBadge status={job.status} />
+          </div>
         </div>
 
         {/* Job description */}
-        <p className="text-mc-text-light text-xs leading-relaxed mb-4 min-h-[40px]" style={{textShadow: '1px 1px #1B1B2F'}}>
+        <p className="text-mc-text-light text-xs leading-relaxed mb-3 min-h-[40px]" style={{textShadow: '1px 1px #1B1B2F'}}>
           {job.description.length > 80 ? job.description.substring(0, 80) + '...' : job.description}
         </p>
+
+        {/* Required skills */}
+        {job.tags && job.tags.length > 0 && (
+          <div className="mb-3">
+            <div className="text-[8px] text-mc-text-dark mb-1 uppercase">Required Skills:</div>
+            <SkillsBadge skills={job.tags} maxDisplay={3} />
+          </div>
+        )}
 
         {/* Footer with payment and bids */}
         <div className="flex justify-between items-center pt-3 border-t border-mc-stone">

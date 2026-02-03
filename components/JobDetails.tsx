@@ -6,6 +6,8 @@ import { Spinner } from './Spinner';
 import { JobStatusBadge } from './JobStatusBadge';
 import { RateAgentModal } from './RateAgentModal';
 import { PlaceBidModal } from './PlaceBidModal';
+import { EscrowStatusDisplay } from './EscrowStatusDisplay';
+import { SubmitDeliverableModal } from './SubmitDeliverableModal';
 
 interface JobDetailsProps {
   jobId: number;
@@ -51,6 +53,7 @@ const JobDetails: React.FC<JobDetailsProps> = ({ jobId, onBack }) => {
   const [isCompleting, setIsCompleting] = useState<boolean>(false);
   const [showRateModal, setShowRateModal] = useState<boolean>(false);
   const [showBidModal, setShowBidModal] = useState<boolean>(false);
+  const [showDeliverableModal, setShowDeliverableModal] = useState<boolean>(false);
 
   const currentUser = getCurrentUserAddress();
 
@@ -228,7 +231,19 @@ const JobDetails: React.FC<JobDetailsProps> = ({ jobId, onBack }) => {
               
               {/* Action buttons based on status */}
               <div className="flex gap-2">
-                {(job.status === 'InProgress' || job.status === 'IN_PROGRESS') && (
+                {/* Submit Deliverable button - for assigned agent */}
+                {(job.status === 'InProgress' || job.status === 'IN_PROGRESS') && addressMatch(job.agent, currentUser) && (
+                  <button
+                    onClick={() => setShowDeliverableModal(true)}
+                    className="bg-mc-amethyst text-white font-bold py-2 px-4 border-4 border-t-mc-ui-border-light border-l-mc-ui-border-light border-b-purple-800 border-r-purple-800 text-[10px] uppercase tracking-wider hover:brightness-110 transition-all flex items-center gap-2"
+                  >
+                    <span>📦</span>
+                    Submit Deliverable
+                  </button>
+                )}
+                
+                {/* Complete job button - for client */}
+                {(job.status === 'InProgress' || job.status === 'IN_PROGRESS') && addressMatch(job.client, currentUser) && (
                   <button
                     onClick={handleCompleteJob}
                     disabled={isCompleting}
@@ -287,6 +302,11 @@ const JobDetails: React.FC<JobDetailsProps> = ({ jobId, onBack }) => {
           )}
         </div>
       </div>
+
+      {/* Escrow Status Display - Show for all jobs with assigned agent */}
+      {job.agent && (
+        <EscrowStatusDisplay job={job} className="mb-8" />
+      )}
       
       {/* Bids/Agent Section */}
       <div className="mb-4">
@@ -398,6 +418,18 @@ const JobDetails: React.FC<JobDetailsProps> = ({ jobId, onBack }) => {
           job={job}
           onClose={() => setShowBidModal(false)}
           onBidPlaced={handleBidPlaced}
+        />
+      )}
+
+      {/* Submit Deliverable Modal */}
+      {showDeliverableModal && job && (
+        <SubmitDeliverableModal
+          job={job}
+          onClose={() => setShowDeliverableModal(false)}
+          onSubmitted={() => {
+            setShowDeliverableModal(false);
+            fetchJobDetails();
+          }}
         />
       )}
     </div>

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { postJob, postJobOnChain, isLineraEnabled } from '../services/api';
 import { JobCategory } from '../types';
+import { RequiredSkillsInput } from './SkillsDisplay';
 
 interface PostJobModalProps {
   isOpen: boolean;
@@ -197,19 +198,18 @@ export const PostJobModal: React.FC<PostJobModalProps> = ({ isOpen, onClose, onJ
             </div>
           </div>
 
-          {/* Tags Field */}
+          {/* Required Skills Field */}
           <div className="mb-3">
-            <label htmlFor="tags" className="block text-mc-text-light text-[10px] uppercase tracking-wider mb-1">
-              Tags (comma separated)
+            <label htmlFor="skills" className="block text-mc-text-light text-[10px] uppercase tracking-wider mb-1">
+              Required Skills
             </label>
-            <input
-              id="tags"
-              type="text"
+            <RequiredSkillsInput
               value={tagsInput}
-              onChange={(e) => setTagsInput(e.target.value)}
-              className="w-full bg-mc-ui-bg-dark border-3 border-mc-stone focus:border-mc-diamond p-2.5 text-mc-text-light text-xs focus:outline-none transition-colors placeholder-mc-text-dark"
-              placeholder="e.g., rust, blockchain, defi"
+              onChange={setTagsInput}
             />
+            <span className="text-mc-text-dark text-[8px] mt-1 block">
+              Skills help match your job with qualified agents
+            </span>
           </div>
 
           {/* Payment Field */}

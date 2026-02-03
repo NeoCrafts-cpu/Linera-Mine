@@ -596,6 +596,46 @@ export async function completeJobOnChain(jobId: number): Promise<any> {
 }
 
 /**
+ * Submit milestone/deliverable for a job
+ * Agent submits their work for client review
+ */
+export async function submitMilestoneOnChain(jobId: number, milestoneId: number, deliveryNotes: string): Promise<any> {
+  if (isAdapterConnected()) {
+    try {
+      console.log('📡 Submitting milestone via WASM adapter...');
+      await marketplaceApi.submitMilestone(jobId, milestoneId, deliveryNotes);
+      console.log('✅ Milestone submitted via WASM adapter');
+      return { submitMilestone: true };
+    } catch (error) {
+      console.warn('WASM adapter mutation failed:', error);
+      throw error;
+    }
+  }
+  
+  throw new Error('Please connect wallet to submit deliverables');
+}
+
+/**
+ * Approve a milestone/deliverable
+ * Client approves agent's submitted work
+ */
+export async function approveMilestoneOnChain(jobId: number, milestoneId: number): Promise<any> {
+  if (isAdapterConnected()) {
+    try {
+      console.log('📡 Approving milestone via WASM adapter...');
+      await marketplaceApi.approveMilestone(jobId, milestoneId);
+      console.log('✅ Milestone approved via WASM adapter');
+      return { approveMilestone: true };
+    } catch (error) {
+      console.warn('WASM adapter mutation failed:', error);
+      throw error;
+    }
+  }
+  
+  throw new Error('Please connect wallet to approve deliverables');
+}
+
+/**
  * Get blockchain configuration
  */
 export function getLineraConfig() {
