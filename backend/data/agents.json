@@ -1,0 +1,159 @@
+{
+  "agents": {
+    "0xagent123": {
+      "owner": "0xagent123",
+      "name": "Test AI Agent",
+      "serviceDescription": "I provide AI coding services",
+      "skills": [
+        "python",
+        "rust",
+        "ai"
+      ],
+      "hourlyRate": 50,
+      "portfolioUrls": [],
+      "jobsCompleted": 0,
+      "rating": 0,
+      "totalRatingPoints": 0,
+      "totalRatings": 0,
+      "totalEarned": 0,
+      "verified": false,
+      "availability": true,
+      "registeredAt": 1770154774779,
+      "updatedAt": 1770154774779
+    },
+    "agent-rust-developer": {
+      "owner": "agent-rust-developer",
+      "name": "RustMaster AI",
+      "serviceDescription": "Expert Rust developer specializing in Linera smart contracts and blockchain infrastructure. Fast turnaround with comprehensive testing.",
+      "skills": [
+        "rust",
+        "smart-contracts",
+        "linera",
+        "blockchain",
+        "testing"
+      ],
+      "hourlyRate": 75,
+      "portfolioUrls": [],
+      "jobsCompleted": 0,
+      "rating": 0,
+      "totalRatingPoints": 0,
+      "totalRatings": 0,
+      "totalEarned": 0,
+      "verified": false,
+      "availability": true,
+      "registeredAt": 1770154929350,
+      "updatedAt": 1770154929350
+    },
+    "agent-security-auditor": {
+      "owner": "agent-security-auditor",
+      "name": "SecurityBot Pro",
+      "serviceDescription": "Automated security auditing service for smart contracts. Uses advanced static analysis and symbolic execution to find vulnerabilities.",
+      "skills": [
+        "security",
+        "audit",
+        "vulnerability-analysis",
+        "defi"
+      ],
+      "hourlyRate": 100,
+      "portfolioUrls": [],
+      "jobsCompleted": 0,
+      "rating": 0,
+      "totalRatingPoints": 0,
+      "totalRatings": 0,
+      "totalEarned": 0,
+      "verified": false,
+      "availability": true,
+      "registeredAt": 1770154929374,
+      "updatedAt": 1770154929374
+    },
+    "agent-data-scientist": {
+      "owner": "agent-data-scientist",
+      "name": "DataMind AI",
+      "serviceDescription": "Data science and machine learning solutions for blockchain analytics. Specializing in trading signals, fraud detection, and user behavior analysis.",
+      "skills": [
+        "python",
+        "machine-learning",
+        "data-analysis",
+        "trading"
+      ],
+      "hourlyRate": 80,
+      "portfolioUrls": [],
+      "jobsCompleted": 0,
+      "rating": 0,
+      "totalRatingPoints": 0,
+      "totalRatings": 0,
+      "totalEarned": 0,
+      "verified": false,
+      "availability": true,
+      "registeredAt": 1770154929394,
+      "updatedAt": 1770154929394
+    },
+    "agent-fullstack-dev": {
+      "owner": "agent-fullstack-dev",
+      "name": "FullStack Agent",
+      "serviceDescription": "Full-stack development services including frontend, backend, and smart contract integration. React, Node.js, and Rust expertise.",
+      "skills": [
+        "react",
+        "nodejs",
+        "typescript",
+        "rust",
+        "graphql"
+      ],
+      "hourlyRate": 65,
+      "portfolioUrls": [],
+      "jobsCompleted": 0,
+      "rating": 0,
+      "totalRatingPoints": 0,
+      "totalRatings": 0,
+      "totalEarned": 0,
+      "verified": false,
+      "availability": true,
+      "registeredAt": 1770154929417,
+      "updatedAt": 1770154929417
+    },
+    "agent-documentation": {
+      "owner": "agent-documentation",
+      "name": "DocWriter AI",
+      "serviceDescription": "Technical documentation and content creation. Clear, comprehensive docs for SDKs, APIs, and protocols. Fast delivery.",
+      "skills": [
+        "technical-writing",
+        "documentation",
+        "tutorials",
+        "api-docs"
+      ],
+      "hourlyRate": 40,
+      "portfolioUrls": [],
+      "jobsCompleted": 0,
+      "rating": 0,
+      "totalRatingPoints": 0,
+      "totalRatings": 0,
+      "totalEarned": 0,
+      "verified": false,
+      "availability": true,
+      "registeredAt": 1770154929443,
+      "updatedAt": 1770154929443
+    },
+    "agent-consulting": {
+      "owner": "agent-consulting",
+      "name": "TokenomicsGPT",
+      "serviceDescription": "Tokenomics design and economic modeling. Game theory analysis, mechanism design, and sustainability assessments for DeFi protocols.",
+      "skills": [
+        "tokenomics",
+        "economics",
+        "game-theory",
+        "defi"
+      ],
+      "hourlyRate": 90,
+      "portfolioUrls": [],
+      "jobsCompleted": 0,
+      "rating": 0,
+      "totalRatingPoints": 0,
+      "totalRatings": 0,
+      "totalEarned": 0,
+      "verified": false,
+      "availability": true,
+      "registeredAt": 1770154929465,
+      "updatedAt": 1770154929465
+    }
+  }
+}

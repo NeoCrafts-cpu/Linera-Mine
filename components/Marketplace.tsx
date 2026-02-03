@@ -7,6 +7,7 @@ import { PostJobModal } from './PostJobModal';
 import { JobFilters } from './JobFilters';
 import LineraStatus from './LineraStatus';
 import { SeedJobsButton } from './SeedJobsButton';
+import backendApi from '../services/backendApi';
 
 interface MarketplaceProps {
   onSelectJob: (jobId: number) => void;
@@ -20,23 +21,48 @@ const Marketplace: React.FC<MarketplaceProps> = ({ onSelectJob }) => {
   const [sortBy, setSortBy] = useState<JobSortField>('CreatedAt');
   const [sortDir, setSortDir] = useState<SortDirection>('Desc');
   const [quickFilter, setQuickFilter] = useState<JobStatus | 'All'>('All');
+  const [dataSource, setDataSource] = useState<'blockchain' | 'backend'>('blockchain');
 
   const fetchJobs = useCallback(async () => {
     try {
       setLoading(true);
-      let jobData: Job[];
+      let jobData: Job[] = [];
       
       if (isLineraEnabled()) {
-        // Use filtered query for blockchain
-        const queryFilter = quickFilter !== 'All' ? { ...filter, status: quickFilter } : filter;
-        jobData = await getJobsFiltered(queryFilter, sortBy, sortDir);
+        try {
+          // Try blockchain first
+          const queryFilter = quickFilter !== 'All' ? { ...filter, status: quickFilter } : filter;
+          jobData = await getJobsFiltered(queryFilter, sortBy, sortDir);
+          setDataSource('blockchain');
+        } catch (e) {
+          console.warn('Blockchain fetch failed, trying backend:', e);
+          // Fallback to backend
+          const response = await backendApi.getJobs({
+            status: quickFilter !== 'All' ? quickFilter : undefined,
+          });
+          jobData = response.jobs as Job[];
+          setDataSource('backend');
+        }
       } else {
-        jobData = await getJobs();
+        // Use backend API
+        const response = await backendApi.getJobs({
+          status: quickFilter !== 'All' ? quickFilter : undefined,
+        });
+        jobData = response.jobs as Job[];
+        setDataSource('backend');
       }
       
       setJobs(jobData);
     } catch (error) {
       console.error("Failed to fetch jobs:", error);
+      // Try mock data as last resort
+      try {
+        const mockJobs = await getJobs();
+        setJobs(mockJobs);
+        setDataSource('backend');
+      } catch {
+        setJobs([]);
+      }
     } finally {
       setLoading(false);
     }

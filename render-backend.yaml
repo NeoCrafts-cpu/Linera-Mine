@@ -2,22 +2,22 @@
 # Deploy with: https://render.com/deploy
 
 services:
-  # Wallet Persistence Backend - Node.js + SQLite
+  # Backend API - Node.js with JSON file storage
   - type: web
     name: linera-mine-backend
     runtime: docker
-    dockerfilePath: ./backend/Dockerfile.wallet
+    dockerfilePath: ./backend/Dockerfile.simple
     dockerContext: ./backend
-    plan: starter  # $7/month - sufficient for SQLite backend
+    plan: starter  # $7/month - sufficient for backend API
     healthCheckPath: /health
     envVars:
       - key: NODE_ENV
         value: production
       - key: PORT
         value: 3001
-      - key: ENCRYPTION_KEY
-        generateValue: true  # Auto-generate secure key
+      - key: DATA_DIR
+        value: /data
     disk:
-      name: linera-db
+      name: linera-data
       mountPath: /data
-      sizeGB: 1  # 1GB is plenty for SQLite
+      sizeGB: 1  # 1GB is plenty for JSON files

@@ -1,0 +1,181 @@
+{
+  "jobs": {
+    "1": {
+      "id": 1,
+      "title": "Test Job",
+      "description": "This is a test job",
+      "payment": 100,
+      "category": "DEVELOPMENT",
+      "tags": [
+        "rust",
+        "web3"
+      ],
+      "client": "0x123abc",
+      "agent": null,
+      "status": "POSTED",
+      "bids": [],
+      "milestones": [],
+      "createdAt": 1770154766214,
+      "updatedAt": 1770154766214
+    },
+    "2": {
+      "id": 2,
+      "title": "Build Smart Contract for NFT Marketplace",
+      "description": "Need an AI agent to develop a Linera smart contract for an NFT marketplace. Must include minting, listing, and trading functionality with proper escrow handling.",
+      "payment": 500,
+      "category": "DEVELOPMENT",
+      "tags": [
+        "rust",
+        "smart-contract",
+        "nft",
+        "linera"
+      ],
+      "client": "example-client-nft-marketplace",
+      "agent": null,
+      "status": "POSTED",
+      "bids": [],
+      "milestones": [],
+      "createdAt": 1770154929131,
+      "updatedAt": 1770154929131
+    },
+    "3": {
+      "id": 3,
+      "title": "Analyze DeFi Protocol Security",
+      "description": "Security audit of a decentralized lending protocol. AI agent should analyze the contract for common vulnerabilities, reentrancy attacks, and economic exploits.",
+      "payment": 750,
+      "category": "AUDIT",
+      "tags": [
+        "security",
+        "defi",
+        "audit",
+        "vulnerability"
+      ],
+      "client": "example-client-defi-protocol",
+      "agent": null,
+      "status": "POSTED",
+      "bids": [],
+      "milestones": [],
+      "createdAt": 1770154929162,
+      "updatedAt": 1770154929162
+    },
+    "4": {
+      "id": 4,
+      "title": "Create AI Chatbot Integration",
+      "description": "Integrate an AI chatbot with our Linera dApp. The bot should be able to answer user questions about their portfolio and execute simple transactions.",
+      "payment": 350,
+      "category": "DEVELOPMENT",
+      "tags": [
+        "ai",
+        "chatbot",
+        "integration",
+        "nlp"
+      ],
+      "client": "example-client-chatbot",
+      "agent": null,
+      "status": "POSTED",
+      "bids": [],
+      "milestones": [],
+      "createdAt": 1770154929192,
+      "updatedAt": 1770154929192
+    },
+    "5": {
+      "id": 5,
+      "title": "Data Analysis for Trading Signals",
+      "description": "Build a data pipeline to analyze on-chain data and generate trading signals. Should include backtesting capabilities and real-time alerts.",
+      "payment": 600,
+      "category": "DATA_ANALYSIS",
+      "tags": [
+        "data",
+        "trading",
+        "analysis",
+        "signals"
+      ],
+      "client": "example-client-trading",
+      "agent": null,
+      "status": "POSTED",
+      "bids": [],
+      "milestones": [],
+      "createdAt": 1770154929218,
+      "updatedAt": 1770154929218
+    },
+    "6": {
+      "id": 6,
+      "title": "Documentation Writer for SDK",
+      "description": "Write comprehensive documentation for our Linera SDK. Includes API reference, tutorials, and example code for common use cases.",
+      "payment": 200,
+      "category": "WRITING",
+      "tags": [
+        "documentation",
+        "sdk",
+        "technical-writing"
+      ],
+      "client": "example-client-docs",
+      "agent": null,
+      "status": "POSTED",
+      "bids": [],
+      "milestones": [],
+      "createdAt": 1770154929244,
+      "updatedAt": 1770154929244
+    },
+    "7": {
+      "id": 7,
+      "title": "Design Tokenomics Model",
+      "description": "Design a sustainable tokenomics model for a new protocol. Should include staking mechanisms, governance, and inflation schedules.",
+      "payment": 400,
+      "category": "CONSULTING",
+      "tags": [
+        "tokenomics",
+        "economics",
+        "design"
+      ],
+      "client": "example-client-tokenomics",
+      "agent": null,
+      "status": "POSTED",
+      "bids": [],
+      "milestones": [],
+      "createdAt": 1770154929277,
+      "updatedAt": 1770154929277
+    },
+    "8": {
+      "id": 8,
+      "title": "Build GraphQL API for Blockchain Data",
+      "description": "Create a GraphQL API that aggregates and serves blockchain data from multiple Linera chains. Should support filtering, pagination, and real-time subscriptions.",
+      "payment": 450,
+      "category": "DEVELOPMENT",
+      "tags": [
+        "graphql",
+        "api",
+        "blockchain",
+        "data"
+      ],
+      "client": "example-client-api",
+      "agent": null,
+      "status": "POSTED",
+      "bids": [],
+      "milestones": [],
+      "createdAt": 1770154929308,
+      "updatedAt": 1770154929308
+    },
+    "9": {
+      "id": 9,
+      "title": "Machine Learning Model for Fraud Detection",
+      "description": "Develop and train an ML model to detect fraudulent transactions on the blockchain. Must achieve 95%+ accuracy with low false positive rate.",
+      "payment": 800,
+      "category": "DATA_ANALYSIS",
+      "tags": [
+        "ml",
+        "fraud-detection",
+        "ai",
+        "security"
+      ],
+      "client": "example-client-ml",
+      "agent": null,
+      "status": "POSTED",
+      "bids": [],
+      "milestones": [],
+      "createdAt": 1770154929338,
+      "updatedAt": 1770154929338
+    }
+  },
+  "jobCounter": 10
+}

@@ -5,6 +5,7 @@ import { AgentCard } from './AgentCard';
 import { Spinner } from './Spinner';
 import { RegisterAgentModal } from './RegisterAgentModal';
 import LineraStatus from './LineraStatus';
+import backendApi from '../services/backendApi';
 
 interface AgentDirectoryProps {
   onSelectAgent?: (agentOwner: Owner) => void;
@@ -16,21 +17,40 @@ const AgentDirectory: React.FC<AgentDirectoryProps> = ({ onSelectAgent }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [sortBy, setSortBy] = useState<'rating' | 'jobs' | 'name'>('rating');
   const [searchTerm, setSearchTerm] = useState('');
+  const [dataSource, setDataSource] = useState<'blockchain' | 'backend'>('blockchain');
 
   const fetchAgents = useCallback(async () => {
     try {
       setLoading(true);
-      let agentData: AgentProfile[];
+      let agentData: AgentProfile[] = [];
       
       if (isLineraEnabled()) {
-        agentData = await getAgentsFromChain();
+        try {
+          agentData = await getAgentsFromChain();
+          setDataSource('blockchain');
+        } catch (e) {
+          console.warn('Blockchain fetch failed, trying backend:', e);
+          const response = await backendApi.getAgents();
+          agentData = response.agents as AgentProfile[];
+          setDataSource('backend');
+        }
       } else {
-        agentData = await getAgents();
+        // Use backend API
+        const response = await backendApi.getAgents();
+        agentData = response.agents as AgentProfile[];
+        setDataSource('backend');
       }
       
       setAgents(agentData);
     } catch (error) {
       console.error("Failed to fetch agents:", error);
+      // Fallback to mock
+      try {
+        const mockAgents = await getAgents();
+        setAgents(mockAgents);
+      } catch {
+        setAgents([]);
+      }
     } finally {
       setLoading(false);
     }
