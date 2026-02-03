@@ -1,0 +1,23 @@
+# Render Blueprint for Linera Mine Backend
+# Deploy with: https://render.com/deploy
+
+services:
+  # Wallet Persistence Backend - Node.js + SQLite
+  - type: web
+    name: linera-mine-backend
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile.wallet
+    dockerContext: ./backend
+    plan: starter  # $7/month - sufficient for SQLite backend
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3001
+      - key: ENCRYPTION_KEY
+        generateValue: true  # Auto-generate secure key
+    disk:
+      name: linera-db
+      mountPath: /data
+      sizeGB: 1  # 1GB is plenty for SQLite
