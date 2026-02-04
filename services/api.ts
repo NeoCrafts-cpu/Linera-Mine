@@ -147,6 +147,19 @@ export function getCurrentUserAddress(): Owner | null {
   if (currentWalletAuth?.address) {
     return currentWalletAuth.address;
   }
+  
+  // Fallback: check localStorage for MetaMask wallet address
+  const web3Address = localStorage.getItem('linera_mine_web3_address');
+  if (web3Address) {
+    return web3Address as Owner;
+  }
+  
+  // Fallback: check localStorage for legacy wallet address
+  const legacyAddress = localStorage.getItem('linera_user_address');
+  if (legacyAddress) {
+    return legacyAddress as Owner;
+  }
+  
   // Fallback to environment variable
   const envOwner = import.meta.env.VITE_LINERA_WALLET_OWNER;
   if (envOwner) {

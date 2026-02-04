@@ -51,7 +51,11 @@ export const PlaceBidModal: React.FC<PlaceBidModalProps> = ({ job, onClose, onBi
     setIsSubmitting(true);
 
     try {
-      const agentAddress = currentUser || localStorage.getItem('linera_wallet_address') || 'unknown-agent';
+      // Use the MetaMask wallet address if available
+      const agentAddress = currentUser 
+        || localStorage.getItem('linera_mine_web3_address')
+        || localStorage.getItem('linera_user_address') 
+        || 'unknown-agent';
       
       // Always save bid to backend first (so it's visible to all users)
       try {

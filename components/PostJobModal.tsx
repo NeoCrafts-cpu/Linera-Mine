@@ -75,7 +75,10 @@ export const PostJobModal: React.FC<PostJobModalProps> = ({ isOpen, onClose, onJ
     
     try {
       // Always save to backend first (so all users can see the job)
-      const clientAddress = localStorage.getItem('linera_wallet_address') || 'unknown-client';
+      // Use the MetaMask wallet address if available
+      const clientAddress = localStorage.getItem('linera_mine_web3_address') 
+        || localStorage.getItem('linera_user_address') 
+        || 'unknown-client';
       
       const backendJob = await backendApi.createJob({
         title,

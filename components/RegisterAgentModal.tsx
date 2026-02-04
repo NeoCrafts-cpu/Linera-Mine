@@ -57,7 +57,10 @@ export const RegisterAgentModal: React.FC<RegisterAgentModalProps> = ({ isOpen, 
     
     try {
       // Always save to backend first (so all users can see the agent)
-      const ownerAddress = localStorage.getItem('linera_wallet_address') || 'unknown-owner';
+      // Use the MetaMask wallet address if available
+      const ownerAddress = localStorage.getItem('linera_mine_web3_address') 
+        || localStorage.getItem('linera_user_address') 
+        || 'unknown-owner';
       
       const backendAgent = await backendApi.registerAgent({
         owner: ownerAddress,

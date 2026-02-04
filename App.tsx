@@ -12,6 +12,9 @@ import { ToastProvider } from './components/ToastNotifications';
 import { Owner } from './types';
 import { Footer } from './components/Footer';
 import { useLineraConnection } from './hooks';
+import { WalletConnectModal } from './components/WalletConnectModal';
+import { useWeb3Wallet } from './hooks/useWeb3Wallet';
+import * as backendApi from './services/backendApi';
 
 type View = 'home' | 'marketplace' | 'agents' | 'job-details' | 'docs' | 'agent-docs' | 'dashboard' | 'agent-profile';
 
@@ -19,6 +22,11 @@ const App: React.FC = () => {
   const [activeView, setActiveView] = useState<View>('home');
   const [selectedJobId, setSelectedJobId] = useState<number | null>(null);
   const [selectedAgentOwner, setSelectedAgentOwner] = useState<Owner | null>(null);
+  const [showWalletModal, setShowWalletModal] = useState(false);
+  const [currentUser, setCurrentUser] = useState<backendApi.AuthUser | null>(null);
+  
+  // Web3 wallet hook for MetaMask connection
+  const web3Wallet = useWeb3Wallet();
   
   // Use the Linera connection hook
   const { 
@@ -31,6 +39,26 @@ const App: React.FC = () => {
     connect,
     disconnect 
   } = useLineraConnection();
+
+  // Check for existing session on mount
+  useEffect(() => {
+    const checkSession = async () => {
+      const storedSession = web3Wallet.checkStoredSession();
+      if (storedSession) {
+        console.log('📂 Found stored wallet session, restoring...');
+        try {
+          const user = await backendApi.getCurrentUser();
+          if (user) {
+            setCurrentUser(user);
+            console.log('✅ Session restored for:', user.address);
+          }
+        } catch (err) {
+          console.warn('Could not restore session:', err);
+        }
+      }
+    };
+    checkSession();
+  }, [web3Wallet.checkStoredSession]);
 
   // Log connection status changes
   useEffect(() => {
@@ -81,29 +109,50 @@ const App: React.FC = () => {
   }, []);
 
   const handleConnect = async () => {
-    // Generate a unique user address (in production, this would come from a wallet)
-    // For now, we use a random address or one from localStorage
-    let userAddr = localStorage.getItem('linera_user_address');
+    // Show the wallet connect modal
+    setShowWalletModal(true);
+  };
+
+  const handleWalletConnected = async (address: string) => {
+    // Store the wallet address in localStorage for other components
+    localStorage.setItem('linera_user_address', address);
+    localStorage.setItem('linera_client_address', address);
     
-    if (!userAddr) {
-      // Generate a pseudo-random address
-      userAddr = '0x' + Array.from({ length: 40 }, () => 
-        Math.floor(Math.random() * 16).toString(16)
-      ).join('');
-      localStorage.setItem('linera_user_address', userAddr);
+    // Fetch user from backend
+    try {
+      const user = await backendApi.getCurrentUser();
+      setCurrentUser(user);
+    } catch (err) {
+      console.warn('Could not fetch user:', err);
     }
     
+    // Also try to connect to Linera blockchain
     try {
-      await connect(userAddr);
+      await connect(address);
     } catch (error) {
-      console.error('Connection failed:', error);
-      alert('Failed to connect to Linera. Check console for details.');
+      console.warn('Linera connection failed (optional):', error);
     }
   };
 
   const handleDisconnect = () => {
+    // Disconnect web3 wallet
+    web3Wallet.disconnect();
+    
+    // Clear current user
+    setCurrentUser(null);
+    
+    // Clear localStorage
+    localStorage.removeItem('linera_user_address');
+    localStorage.removeItem('linera_client_address');
+    localStorage.removeItem('linera_mine_auth_token');
+    
+    // Disconnect Linera
     disconnect();
   };
+
+  // Determine if user is authenticated (via MetaMask)
+  const isAuthenticated = !!web3Wallet.address || !!currentUser;
+  const userAddress = web3Wallet.address || currentUser?.address || walletAddress;
 
   const renderContent = () => {
     switch (activeView) {
@@ -139,6 +188,13 @@ const App: React.FC = () => {
   return (
     <ToastProvider>
       <div className="min-h-screen font-sans flex flex-col">
+        {/* Wallet Connect Modal */}
+        <WalletConnectModal
+          isOpen={showWalletModal}
+          onClose={() => setShowWalletModal(false)}
+          onConnected={handleWalletConnected}
+        />
+        
         {/* Connection status banner */}
         {isConnecting && (
           <div className="fixed top-0 left-0 right-0 z-50 bg-blue-900/80 border-b border-blue-500 p-2 text-center">
@@ -159,8 +215,8 @@ const App: React.FC = () => {
         <Header 
           activeView={activeView} 
           setActiveView={setActiveView}
-          isConnected={isAppConnected}
-          userAddress={walletAddress as Owner | null}
+          isConnected={isAuthenticated}
+          userAddress={userAddress as Owner | null}
           onConnect={handleConnect}
           onDisconnect={handleDisconnect}
         />
