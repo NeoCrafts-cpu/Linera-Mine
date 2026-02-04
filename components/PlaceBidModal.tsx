@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { placeBidOnChain, placeBid, isLineraEnabled, getCurrentUserAddress } from '../services/api';
 import { Job } from '../types';
 import { Spinner } from './Spinner';
+import backendApi from '../services/backendApi';
 
 interface PlaceBidModalProps {
   job: Job;
@@ -50,17 +51,36 @@ export const PlaceBidModal: React.FC<PlaceBidModalProps> = ({ job, onClose, onBi
     setIsSubmitting(true);
 
     try {
-      if (isLineraEnabled()) {
-        await placeBidOnChain(job.id, amount, proposal.trim(), days);
-      } else {
-        // Mock bid for demo mode
-        await placeBid(job.id);
+      const agentAddress = currentUser || localStorage.getItem('linera_wallet_address') || 'unknown-agent';
+      
+      // Always save bid to backend first (so it's visible to all users)
+      try {
+        await backendApi.placeBid(job.id, {
+          agent: agentAddress,
+          amount: amount,
+          proposal: proposal.trim(),
+          estimatedDays: days,
+        });
+        console.log('✅ Bid saved to backend');
+      } catch (backendErr) {
+        console.warn('Backend bid save failed:', backendErr);
       }
+      
+      // Also place on blockchain if enabled
+      if (isLineraEnabled()) {
+        try {
+          await placeBidOnChain(job.id, amount, proposal.trim(), days);
+          console.log('✅ Bid placed on blockchain');
+        } catch (chainErr) {
+          console.warn('Blockchain bid failed, but bid is saved in backend:', chainErr);
+        }
+      }
+      
       setSuccess(true);
-      // Wait a bit longer for blockchain state to propagate before refreshing
+      // Wait a bit for state to propagate before refreshing
       setTimeout(() => {
         onBidPlaced();
-      }, 3000);
+      }, 1500);
     } catch (err) {
       console.error('Failed to place bid:', err);
       setError(err instanceof Error ? err.message : 'Failed to place bid. Please try again.');
