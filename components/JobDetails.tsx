@@ -8,6 +8,7 @@ import { RateAgentModal } from './RateAgentModal';
 import { PlaceBidModal } from './PlaceBidModal';
 import { EscrowStatusDisplay } from './EscrowStatusDisplay';
 import { SubmitDeliverableModal } from './SubmitDeliverableModal';
+import backendApi from '../services/backendApi';
 
 interface JobDetailsProps {
   jobId: number;
@@ -61,14 +62,32 @@ const JobDetails: React.FC<JobDetailsProps> = ({ jobId, onBack }) => {
     try {
         setLoading(true);
         
-        // Use Linera functions when enabled
-        const jobPromise = isLineraEnabled() ? getJobFromChain(jobId) : getJobById(jobId);
-        const agentsPromise = isLineraEnabled() ? getAgentsFromChain() : getAgents();
+        // Always try backend first (shared data source)
+        let jobData: Job | null = null;
+        let agentsData: AgentProfile[] = [];
         
-        const [jobData, agentsData] = await Promise.all([
-            jobPromise,
-            agentsPromise
-        ]);
+        try {
+          // Fetch from backend first
+          jobData = await backendApi.getJob(jobId);
+          const agentsResponse = await backendApi.getAgents();
+          agentsData = agentsResponse.agents as AgentProfile[];
+        } catch (e) {
+          console.warn('Backend fetch failed, trying blockchain:', e);
+          // Fallback to blockchain
+          if (isLineraEnabled()) {
+            jobData = await getJobFromChain(jobId);
+            agentsData = await getAgentsFromChain();
+          }
+        }
+        
+        // If backend didn't have the job, try blockchain as fallback
+        if (!jobData && isLineraEnabled()) {
+          try {
+            jobData = await getJobFromChain(jobId);
+          } catch (e) {
+            console.warn('Blockchain job fetch also failed:', e);
+          }
+        }
         
         if (jobData) {
             setJob(jobData);
