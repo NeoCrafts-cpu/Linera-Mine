@@ -108,11 +108,23 @@ const JobDetails: React.FC<JobDetailsProps> = ({ jobId, onBack }) => {
     if (!job) return;
     setIsAccepting(agentOwner);
     try {
-      if (isLineraEnabled()) {
-        await acceptBidOnChain(job.id, agentOwner, bidAmount);
-      } else {
-        await acceptJob(job.id, agentOwner);
+      // Always update backend first (primary data source)
+      try {
+        await backendApi.acceptBid(job.id, agentOwner);
+        console.log('✅ Bid accepted in backend');
+      } catch (backendErr) {
+        console.warn('Backend accept failed:', backendErr);
       }
+      
+      // Also update blockchain if enabled
+      if (isLineraEnabled()) {
+        try {
+          await acceptBidOnChain(job.id, agentOwner, bidAmount);
+        } catch (chainErr) {
+          console.warn('Blockchain accept failed:', chainErr);
+        }
+      }
+      
       await fetchJobDetails();
     } catch (error) {
       console.error("Failed to accept bid:", error);
@@ -130,9 +142,23 @@ const JobDetails: React.FC<JobDetailsProps> = ({ jobId, onBack }) => {
     if (!job) return;
     setIsCompleting(true);
     try {
-      if (isLineraEnabled()) {
-        await completeJobOnChain(job.id);
+      // Always update backend first (primary data source)
+      try {
+        await backendApi.completeJob(job.id);
+        console.log('✅ Job completed in backend');
+      } catch (backendErr) {
+        console.warn('Backend complete failed:', backendErr);
       }
+      
+      // Also update blockchain if enabled
+      if (isLineraEnabled()) {
+        try {
+          await completeJobOnChain(job.id);
+        } catch (chainErr) {
+          console.warn('Blockchain complete failed:', chainErr);
+        }
+      }
+      
       await fetchJobDetails();
     } catch (error) {
       console.error("Failed to complete job:", error);
