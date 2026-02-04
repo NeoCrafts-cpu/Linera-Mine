@@ -17,28 +17,38 @@ const AgentDirectory: React.FC<AgentDirectoryProps> = ({ onSelectAgent }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [sortBy, setSortBy] = useState<'rating' | 'jobs' | 'name'>('rating');
   const [searchTerm, setSearchTerm] = useState('');
-  const [dataSource, setDataSource] = useState<'blockchain' | 'backend'>('blockchain');
+  const [dataSource, setDataSource] = useState<'blockchain' | 'backend'>('backend');
 
   const fetchAgents = useCallback(async () => {
     try {
       setLoading(true);
       let agentData: AgentProfile[] = [];
       
-      if (isLineraEnabled()) {
-        try {
-          agentData = await getAgentsFromChain();
-          setDataSource('blockchain');
-        } catch (e) {
-          console.warn('Blockchain fetch failed, trying backend:', e);
-          const response = await backendApi.getAgents();
-          agentData = response.agents as AgentProfile[];
-          setDataSource('backend');
-        }
-      } else {
-        // Use backend API
+      // Always use backend as primary source for agents (shared across all users)
+      try {
         const response = await backendApi.getAgents();
         agentData = response.agents as AgentProfile[];
         setDataSource('backend');
+      } catch (e) {
+        console.warn('Backend fetch failed, trying blockchain:', e);
+        // Fallback to blockchain if backend is down
+        if (isLineraEnabled()) {
+          agentData = await getAgentsFromChain();
+          setDataSource('blockchain');
+        }
+      }
+      
+      // If no agents found and blockchain is enabled, also check blockchain
+      if (agentData.length === 0 && isLineraEnabled()) {
+        try {
+          const chainAgents = await getAgentsFromChain();
+          if (chainAgents.length > 0) {
+            agentData = chainAgents;
+            setDataSource('blockchain');
+          }
+        } catch (e) {
+          console.warn('Blockchain query also failed:', e);
+        }
       }
       
       setAgents(agentData);

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { postJob, postJobOnChain, isLineraEnabled } from '../services/api';
 import { JobCategory } from '../types';
 import { RequiredSkillsInput } from './SkillsDisplay';
+import backendApi from '../services/backendApi';
 
 interface PostJobModalProps {
   isOpen: boolean;
@@ -73,14 +74,33 @@ export const PostJobModal: React.FC<PostJobModalProps> = ({ isOpen, onClose, onJ
     const tags = tagsInput.split(',').map(t => t.trim()).filter(t => t.length > 0);
     
     try {
+      // Always save to backend first (so all users can see the job)
+      const clientAddress = localStorage.getItem('linera_wallet_address') || 'unknown-client';
+      
+      const backendJob = await backendApi.createJob({
+        title,
+        description,
+        payment: Number(payment),
+        category: category as JobCategory,
+        tags,
+        client: clientAddress,
+      });
+      console.log('✅ Job saved to backend:', backendJob);
+      
+      // Also post to blockchain if enabled (for on-chain verification)
       if (isLineraEnabled()) {
-        console.log('🚀 Posting job to blockchain...', { title, description, payment: Number(payment), category, tags });
-        await postJobOnChain(title, description, Number(payment), category, tags, []);
-        setSuccess('Job posted to blockchain! Transaction confirmed.');
+        try {
+          console.log('🚀 Also posting job to blockchain...', { title, description, payment: Number(payment), category, tags });
+          await postJobOnChain(title, description, Number(payment), category, tags, []);
+          setSuccess('Job posted to backend & blockchain!');
+        } catch (chainErr) {
+          console.warn('Blockchain post failed, but job is saved in backend:', chainErr);
+          setSuccess('Job posted! (Blockchain sync pending)');
+        }
       } else {
-        await postJob(description, Number(payment));
-        setSuccess('Job posted (mock mode)');
+        setSuccess('Job posted successfully!');
       }
+      
       onJobPosted();
       
       setTimeout(() => {

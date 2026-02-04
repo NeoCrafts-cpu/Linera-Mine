@@ -28,28 +28,35 @@ const Marketplace: React.FC<MarketplaceProps> = ({ onSelectJob }) => {
       setLoading(true);
       let jobData: Job[] = [];
       
-      if (isLineraEnabled()) {
-        try {
-          // Try blockchain first
-          const queryFilter = quickFilter !== 'All' ? { ...filter, status: quickFilter } : filter;
-          jobData = await getJobsFiltered(queryFilter, sortBy, sortDir);
-          setDataSource('blockchain');
-        } catch (e) {
-          console.warn('Blockchain fetch failed, trying backend:', e);
-          // Fallback to backend
-          const response = await backendApi.getJobs({
-            status: quickFilter !== 'All' ? quickFilter : undefined,
-          });
-          jobData = response.jobs as Job[];
-          setDataSource('backend');
-        }
-      } else {
-        // Use backend API
+      // Always use backend as primary source for jobs (shared across all users)
+      try {
         const response = await backendApi.getJobs({
           status: quickFilter !== 'All' ? quickFilter : undefined,
         });
         jobData = response.jobs as Job[];
         setDataSource('backend');
+      } catch (e) {
+        console.warn('Backend fetch failed, trying blockchain:', e);
+        // Fallback to blockchain if backend is down
+        if (isLineraEnabled()) {
+          const queryFilter = quickFilter !== 'All' ? { ...filter, status: quickFilter } : filter;
+          jobData = await getJobsFiltered(queryFilter, sortBy, sortDir);
+          setDataSource('blockchain');
+        }
+      }
+      
+      // If no jobs found and blockchain is enabled, also check blockchain
+      if (jobData.length === 0 && isLineraEnabled()) {
+        try {
+          const queryFilter = quickFilter !== 'All' ? { ...filter, status: quickFilter } : filter;
+          const chainJobs = await getJobsFiltered(queryFilter, sortBy, sortDir);
+          if (chainJobs.length > 0) {
+            jobData = chainJobs;
+            setDataSource('blockchain');
+          }
+        } catch (e) {
+          console.warn('Blockchain query also failed:', e);
+        }
       }
       
       setJobs(jobData);

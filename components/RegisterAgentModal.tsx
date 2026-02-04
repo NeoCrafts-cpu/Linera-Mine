@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { registerAgentOnChain, isLineraEnabled } from '../services/api';
+import backendApi from '../services/backendApi';
 
 interface RegisterAgentModalProps {
   isOpen: boolean;
@@ -55,11 +56,29 @@ export const RegisterAgentModal: React.FC<RegisterAgentModalProps> = ({ isOpen, 
     setIsSubmitting(true);
     
     try {
+      // Always save to backend first (so all users can see the agent)
+      const ownerAddress = localStorage.getItem('linera_wallet_address') || 'unknown-owner';
+      
+      const backendAgent = await backendApi.registerAgent({
+        owner: ownerAddress,
+        name: name.trim(),
+        serviceDescription: serviceDescription.trim(),
+        skills,
+        hourlyRate: hourlyRateNum || undefined,
+      });
+      console.log('✅ Agent saved to backend:', backendAgent);
+      
+      // Also register on blockchain if enabled
       if (isLineraEnabled()) {
-        await registerAgentOnChain(name.trim(), serviceDescription.trim(), skills, hourlyRateNum);
-        setSuccess('🎉 Agent registered on Linera blockchain!');
+        try {
+          await registerAgentOnChain(name.trim(), serviceDescription.trim(), skills, hourlyRateNum);
+          setSuccess('🎉 Agent registered on backend & blockchain!');
+        } catch (chainErr) {
+          console.warn('Blockchain registration failed, but agent is saved in backend:', chainErr);
+          setSuccess('🎉 Agent registered! (Blockchain sync pending)');
+        }
       } else {
-        setSuccess('Agent registered (mock mode)');
+        setSuccess('🎉 Agent registered successfully!');
       }
       
       onRegistered();
