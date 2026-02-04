@@ -4,6 +4,7 @@ import { AgentProfile, Job, AgentRating, Owner } from '../types';
 import { Spinner } from './Spinner';
 import { JobStatusBadge } from './JobStatusBadge';
 import { SkillsBadge } from './SkillsDisplay';
+import * as backendApi from '../services/backendApi';
 
 interface AgentProfilePageProps {
   agentOwner: Owner;
@@ -18,19 +19,46 @@ const AgentProfilePage: React.FC<AgentProfilePageProps> = ({ agentOwner, onBack,
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'overview' | 'history' | 'reviews'>('overview');
 
+  // Helper for case-insensitive address comparison
+  const addressMatch = (addr1: string | undefined | null, addr2: string | undefined | null): boolean => {
+    if (!addr1 || !addr2) return false;
+    return addr1.toLowerCase() === addr2.toLowerCase();
+  };
+
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
-      const [agentsData, jobsData] = await Promise.all([
-        isLineraEnabled() ? getAgentsFromChain() : getAgents(),
-        isLineraEnabled() ? getJobsFromChain() : getJobs(),
-      ]);
       
-      const agentProfile = agentsData.find(a => a.owner === agentOwner);
-      setAgent(agentProfile || null);
+      // Try backend first (primary source)
+      let agentProfile: AgentProfile | null = null;
+      let jobsData: Job[] = [];
       
-      // Filter jobs where this agent was involved
-      const agentJobs = jobsData.filter(j => j.agent === agentOwner);
+      try {
+        // Fetch agent from backend
+        agentProfile = await backendApi.getAgent(agentOwner);
+        
+        // Fetch all jobs from backend
+        const backendJobsResponse = await backendApi.getJobs();
+        jobsData = backendJobsResponse.jobs || [];
+        
+        console.log('✅ Fetched agent profile from backend:', agentProfile?.name);
+      } catch (backendErr) {
+        console.warn('Backend fetch failed, falling back to blockchain:', backendErr);
+        
+        // Fallback to blockchain/local
+        const [agentsData, chainJobsData] = await Promise.all([
+          isLineraEnabled() ? getAgentsFromChain() : getAgents(),
+          isLineraEnabled() ? getJobsFromChain() : getJobs(),
+        ]);
+        
+        agentProfile = agentsData.find(a => addressMatch(a.owner, agentOwner)) || null;
+        jobsData = chainJobsData;
+      }
+      
+      setAgent(agentProfile);
+      
+      // Filter jobs where this agent was involved (case-insensitive)
+      const agentJobs = jobsData.filter(j => addressMatch(j.agent, agentOwner));
       setJobs(agentJobs);
 
       // Get ratings - filter by jobs this agent worked on
