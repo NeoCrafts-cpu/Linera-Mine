@@ -4,6 +4,7 @@ import { Job, AgentProfile, JobStatus, Owner } from '../types';
 import { JobCard } from './JobCard';
 import { Spinner } from './Spinner';
 import { JobStatusBadge } from './JobStatusBadge';
+import * as backendApi from '../services/backendApi';
 
 interface MyDashboardProps {
   onSelectJob: (jobId: number) => void;
@@ -17,7 +18,10 @@ const MyDashboard: React.FC<MyDashboardProps> = ({ onSelectJob }) => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabType>('posted');
   
-  const currentUser = getCurrentUserAddress();
+  // Get current user address - check MetaMask wallet first
+  const currentUser = localStorage.getItem('linera_mine_web3_address') 
+    || localStorage.getItem('linera_user_address')
+    || getCurrentUserAddress();
 
   // Helper for case-insensitive address comparison
   const addressMatch = (addr1: string | undefined | null, addr2: string | undefined | null): boolean => {
@@ -28,10 +32,28 @@ const MyDashboard: React.FC<MyDashboardProps> = ({ onSelectJob }) => {
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
-      const [jobsData, agentsData] = await Promise.all([
-        isLineraEnabled() ? getJobsFromChain() : getJobs(),
-        isLineraEnabled() ? getAgentsFromChain() : getAgents(),
-      ]);
+      
+      // Always fetch from backend first (shared data source)
+      let jobsData: Job[] = [];
+      let agentsData: AgentProfile[] = [];
+      
+      try {
+        const backendJobs = await backendApi.getJobs();
+        jobsData = backendJobs.jobs || [];
+        
+        const backendAgents = await backendApi.getAgents();
+        agentsData = backendAgents.agents as AgentProfile[] || [];
+        
+        console.log('✅ Fetched from backend - Jobs:', jobsData.length, 'Agents:', agentsData.length);
+      } catch (backendErr) {
+        console.warn('Backend fetch failed, falling back:', backendErr);
+        // Fallback to blockchain/local
+        [jobsData, agentsData] = await Promise.all([
+          isLineraEnabled() ? getJobsFromChain() : getJobs(),
+          isLineraEnabled() ? getAgentsFromChain() : getAgents(),
+        ]);
+      }
+      
       setJobs(jobsData);
       setAgents(agentsData);
     } catch (error) {
@@ -138,6 +160,20 @@ const MyDashboard: React.FC<MyDashboardProps> = ({ onSelectJob }) => {
         <p className="text-mc-text-dark text-[10px] mt-1">
           Track your jobs, bids, and earnings
         </p>
+        {/* Show current wallet address */}
+        {currentUser && (
+          <div className="mt-2 px-3 py-2 bg-mc-stone/30 border border-mc-stone inline-block">
+            <span className="text-mc-text-dark text-[9px]">Logged in as: </span>
+            <span className="text-mc-diamond text-[10px] font-mono">
+              {currentUser.substring(0, 10)}...{currentUser.substring(currentUser.length - 8)}
+            </span>
+          </div>
+        )}
+        {!currentUser && (
+          <div className="mt-2 px-3 py-2 bg-mc-redstone/20 border border-mc-redstone inline-block">
+            <span className="text-mc-redstone text-[10px]">⚠️ Not connected - Connect wallet to see your jobs</span>
+          </div>
+        )}
       </div>
 
       {/* Stats Overview */}
