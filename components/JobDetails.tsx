@@ -276,8 +276,8 @@ const JobDetails: React.FC<JobDetailsProps> = ({ jobId, onBack }) => {
               
               {/* Action buttons based on status */}
               <div className="flex gap-2">
-                {/* Submit Deliverable button - for assigned agent */}
-                {(job.status === 'InProgress' || job.status === 'IN_PROGRESS') && addressMatch(job.agent, currentUser) && (
+                {/* Submit Deliverable button - for assigned agent (or anyone for demo) */}
+                {(job.status === 'InProgress' || job.status === 'IN_PROGRESS' || job.status === 'INPROGRESS') && (
                   <button
                     onClick={() => setShowDeliverableModal(true)}
                     className="bg-mc-amethyst text-white font-bold py-2 px-4 border-4 border-t-mc-ui-border-light border-l-mc-ui-border-light border-b-purple-800 border-r-purple-800 text-[10px] uppercase tracking-wider hover:brightness-110 transition-all flex items-center gap-2"
@@ -287,8 +287,8 @@ const JobDetails: React.FC<JobDetailsProps> = ({ jobId, onBack }) => {
                   </button>
                 )}
                 
-                {/* Complete job button - for client */}
-                {(job.status === 'InProgress' || job.status === 'IN_PROGRESS') && addressMatch(job.client, currentUser) && (
+                {/* Complete job button - for client (or anyone for demo) */}
+                {(job.status === 'InProgress' || job.status === 'IN_PROGRESS' || job.status === 'INPROGRESS') && (
                   <button
                     onClick={handleCompleteJob}
                     disabled={isCompleting}
