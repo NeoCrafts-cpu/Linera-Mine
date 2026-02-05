@@ -449,10 +449,10 @@ const JobDetails: React.FC<JobDetailsProps> = ({ jobId, onBack }) => {
       </div>
 
       {/* Rate Agent Modal */}
-      {showRateModal && assignedAgentProfile && (
+      {showRateModal && job && (
         <RateAgentModal
           jobId={job.id}
-          agentName={assignedAgentProfile.name}
+          agentName={assignedAgentProfile?.name || `Agent ${job.agent?.substring(0, 8)}...`}
           onClose={() => setShowRateModal(false)}
           onRated={handleRated}
         />
@@ -470,6 +470,7 @@ const JobDetails: React.FC<JobDetailsProps> = ({ jobId, onBack }) => {
       {/* Submit Deliverable Modal */}
       {showDeliverableModal && job && (
         <SubmitDeliverableModal
+          isOpen={showDeliverableModal}
           job={job}
           onClose={() => setShowDeliverableModal(false)}
           onSubmitted={() => {
