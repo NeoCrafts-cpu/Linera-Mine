@@ -17,7 +17,7 @@ const normalizeStatus = (status: string): string => {
 export const EscrowStatusDisplay: React.FC<EscrowStatusDisplayProps> = ({ job, className = '' }) => {
   // Determine escrow state based on job status
   const getEscrowState = (): {
-    status: 'pending' | 'locked' | 'released' | 'refunded' | 'disputed';
+    status: 'pending' | 'locked' | 'submitted' | 'released' | 'refunded' | 'disputed';
     progress: number;
     label: string;
     color: string;
@@ -40,7 +40,11 @@ export const EscrowStatusDisplay: React.FC<EscrowStatusDisplayProps> = ({ job, c
       return { status: 'released', progress: 100, label: 'Released to Agent', color: 'mc-emerald' };
     }
     
-    // IN_PROGRESS or PENDING_APPROVAL
+    if (jobStatus === 'PENDINGAPPROVAL' || jobStatus === 'PENDING_APPROVAL') {
+      return { status: 'submitted', progress: 75, label: 'Deliverable Submitted - Awaiting Approval', color: 'mc-gold' };
+    }
+    
+    // IN_PROGRESS
     return { status: 'locked', progress: 50, label: 'Locked in Escrow', color: 'mc-diamond' };
   };
 
@@ -63,14 +67,14 @@ export const EscrowStatusDisplay: React.FC<EscrowStatusDisplayProps> = ({ job, c
       label: 'Payment Locked', 
       icon: '🔒',
       active: escrowState.status !== 'pending',
-      completed: ['locked', 'released', 'refunded', 'disputed'].includes(escrowState.status)
+      completed: ['locked', 'submitted', 'released', 'refunded', 'disputed'].includes(escrowState.status)
     },
     { 
       id: 'work', 
-      label: 'Work in Progress', 
-      icon: '⚡',
-      active: ['locked', 'released'].includes(escrowState.status),
-      completed: escrowState.status === 'released'
+      label: escrowState.status === 'submitted' ? 'Deliverable Submitted' : 'Work in Progress', 
+      icon: escrowState.status === 'submitted' ? '📦' : '⚡',
+      active: ['locked', 'submitted', 'released'].includes(escrowState.status),
+      completed: ['submitted', 'released'].includes(escrowState.status)
     },
     { 
       id: 'released', 

@@ -557,6 +557,35 @@ app.post('/api/jobs/:id/accept-bid', (req: Request, res: Response) => {
 });
 
 /**
+ * Submit deliverable for a job - changes status to PENDING_APPROVAL
+ */
+app.post('/api/jobs/:id/submit-deliverable', (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { deliveryNotes, deliveryLink } = req.body;
+
+  const jobsData = loadJobs();
+  const job = jobsData.jobs[id];
+
+  if (!job) {
+    return res.status(404).json({ error: 'Job not found' });
+  }
+
+  // Store deliverable info
+  job.deliverable = {
+    notes: deliveryNotes,
+    link: deliveryLink || null,
+    submittedAt: Date.now(),
+  };
+  job.status = 'PENDING_APPROVAL';
+  job.updatedAt = Date.now();
+  saveJobs(jobsData);
+
+  console.log(`📦 Deliverable submitted for job #${id}`);
+
+  res.json({ success: true, job });
+});
+
+/**
  * Complete a job
  */
 app.post('/api/jobs/:id/complete', (req: Request, res: Response) => {

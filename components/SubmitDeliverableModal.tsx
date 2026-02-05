@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { submitMilestoneOnChain, isLineraEnabled } from '../services/api';
 import { Job, Milestone, MilestoneStatus } from '../types';
+import * as backendApi from '../services/backendApi';
 
 interface SubmitDeliverableModalProps {
   isOpen: boolean;
@@ -46,16 +47,25 @@ export const SubmitDeliverableModal: React.FC<SubmitDeliverableModalProps> = ({
         ? `${deliveryNotes}\n\n📎 Deliverable Link: ${deliveryLink}`
         : deliveryNotes;
 
+      // Always update backend first (changes status to PENDING_APPROVAL)
+      try {
+        await backendApi.submitDeliverable(job.id, fullNotes, deliveryLink);
+        console.log('✅ Deliverable submitted to backend');
+      } catch (backendErr) {
+        console.warn('Backend submit failed:', backendErr);
+      }
+
+      // Also submit to blockchain if enabled
       if (isLineraEnabled()) {
-        if (hasNoMilestones) {
-          // No milestones - submit as milestone 0
-          await submitMilestoneOnChain(job.id, 0, fullNotes);
-        } else if (selectedMilestoneId !== null) {
-          await submitMilestoneOnChain(job.id, selectedMilestoneId, fullNotes);
-        } else {
-          setError('Please select a milestone to submit');
-          setIsSubmitting(false);
-          return;
+        try {
+          if (hasNoMilestones) {
+            // No milestones - submit as milestone 0
+            await submitMilestoneOnChain(job.id, 0, fullNotes);
+          } else if (selectedMilestoneId !== null) {
+            await submitMilestoneOnChain(job.id, selectedMilestoneId, fullNotes);
+          }
+        } catch (chainErr) {
+          console.warn('Blockchain submit failed:', chainErr);
         }
       }
 

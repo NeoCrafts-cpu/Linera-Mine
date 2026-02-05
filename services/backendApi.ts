@@ -304,6 +304,21 @@ export async function acceptBid(
 }
 
 /**
+ * Submit deliverable for a job - changes status to PENDING_APPROVAL
+ */
+export async function submitDeliverable(
+  jobId: number | string,
+  deliveryNotes: string,
+  deliveryLink?: string
+): Promise<Job> {
+  const response = await apiRequest<{ success: boolean; job: Job }>(`/api/jobs/${jobId}/submit-deliverable`, {
+    method: 'POST',
+    body: JSON.stringify({ deliveryNotes, deliveryLink }),
+  });
+  return response.job;
+}
+
+/**
  * Complete a job
  */
 export async function completeJob(jobId: number | string): Promise<Job> {
