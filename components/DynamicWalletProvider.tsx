@@ -58,18 +58,23 @@ export const DynamicWalletProvider: React.FC<DynamicWalletProviderProps> = ({ ch
         environmentId: DYNAMIC_ENVIRONMENT_ID,
         walletConnectors: [EthereumWalletConnectors],
         cssOverrides,
+        // Disable social logins that don't work on sandbox/free tier
+        // Only email + wallet connectors are supported
+        socialProvidersFilter: () => [],
         // Enable these features for better UX
         eventsCallbacks: {
           onAuthSuccess: (args: any) => {
             console.log('🎉 Dynamic auth success:', args);
-            // Store the wallet address
+            // Store the wallet address for our app
             if (args.primaryWallet?.address) {
+              localStorage.setItem('linera_mine_web3_address', args.primaryWallet.address);
               localStorage.setItem('linera_user_address', args.primaryWallet.address);
               localStorage.setItem('linera_client_address', args.primaryWallet.address);
             }
           },
           onLogout: () => {
             console.log('👋 Dynamic logout');
+            localStorage.removeItem('linera_mine_web3_address');
             localStorage.removeItem('linera_user_address');
             localStorage.removeItem('linera_client_address');
             localStorage.removeItem('linera_mine_auth_token');
