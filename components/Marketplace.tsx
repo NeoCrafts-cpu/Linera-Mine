@@ -6,7 +6,6 @@ import { Spinner } from './Spinner';
 import { PostJobModal } from './PostJobModal';
 import { JobFilters } from './JobFilters';
 import LineraStatus from './LineraStatus';
-import { SeedJobsButton } from './SeedJobsButton';
 import backendApi from '../services/backendApi';
 
 interface MarketplaceProps {
@@ -170,11 +169,6 @@ const Marketplace: React.FC<MarketplaceProps> = ({ onSelectJob }) => {
           </div>
           
           <div className="flex items-center gap-3">
-            {/* Seed Jobs Button - for demo/testing */}
-            {isLineraEnabled() && jobs.length === 0 && (
-              <SeedJobsButton onComplete={fetchJobs} />
-            )}
-            
             <button
               onClick={() => setIsModalOpen(true)}
               className="mc-btn bg-mc-emerald hover:bg-mc-emerald-dark text-white py-3 px-6 border-4 border-t-mc-ui-border-light border-l-mc-ui-border-light border-b-mc-emerald-dark border-r-mc-emerald-dark text-xs font-bold flex items-center gap-2"
