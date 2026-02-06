@@ -699,14 +699,29 @@ app.get('/api/user/:address/jobs', (req: Request, res: Response) => {
     j.agent?.toLowerCase() !== userAddr
   );
 
+  // Calculate earnings and spending
+  const completedAsAgent = agentJobs.filter((j: any) => j.status === 'COMPLETED');
+  const completedAsClient = postedJobs.filter((j: any) => j.status === 'COMPLETED');
+  const totalEarned = completedAsAgent.reduce((sum: number, j: any) => sum + Number(j.earnedAmount || j.acceptedBidAmount || j.payment || 0), 0);
+  const totalSpent = completedAsClient.reduce((sum: number, j: any) => sum + Number(j.earnedAmount || j.acceptedBidAmount || j.payment || 0), 0);
+
   res.json({
     postedJobs: postedJobs.sort((a: any, b: any) => b.createdAt - a.createdAt),
     agentJobs: agentJobs.sort((a: any, b: any) => b.updatedAt - a.updatedAt),
     bidJobs: bidJobs.sort((a: any, b: any) => b.createdAt - a.createdAt),
+    completedAsAgent: completedAsAgent.sort((a: any, b: any) => (b.completedAt || b.updatedAt) - (a.completedAt || a.updatedAt)),
+    completedAsClient: completedAsClient.sort((a: any, b: any) => (b.completedAt || b.updatedAt) - (a.completedAt || a.updatedAt)),
     totals: {
       posted: postedJobs.length,
-      working: agentJobs.length,
+      working: agentJobs.filter((j: any) => j.status === 'IN_PROGRESS' || j.status === 'PENDING_APPROVAL').length,
       bids: bidJobs.length,
+      completedJobs: completedAsAgent.length + completedAsClient.length,
+    },
+    earnings: {
+      totalEarned,
+      totalSpent,
+      completedAsAgentCount: completedAsAgent.length,
+      completedAsClientCount: completedAsClient.length,
     },
   });
 });
@@ -882,23 +897,39 @@ app.post('/api/jobs/:id/complete', (req: Request, res: Response) => {
     return res.status(404).json({ error: 'Job not found' });
   }
 
+  // Prevent double-completion
+  if (job.status === 'COMPLETED') {
+    return res.json({ success: true, job, message: 'Job already completed' });
+  }
+
+  const earnedAmount = Number(job.acceptedBidAmount || job.payment || 0);
+
   job.status = 'COMPLETED';
   job.completedAt = Date.now();
   job.updatedAt = Date.now();
+  job.earnedAmount = earnedAmount;
   saveJobs(jobsData);
 
-  // Update agent's completed jobs count
+  // Update agent's completed jobs count and earnings
   if (job.agent) {
     const agentsData = loadAgents();
-    const agent = agentsData.agents[job.agent];
+    const agentKey = String(job.agent).toLowerCase();
+    const agent = agentsData.agents[agentKey];
     if (agent) {
       agent.jobsCompleted = (agent.jobsCompleted || 0) + 1;
-      agent.totalEarned = (agent.totalEarned || 0) + (job.acceptedBidAmount || job.payment);
+      agent.totalEarned = (agent.totalEarned || 0) + earnedAmount;
+      // Keep a record of completed job IDs on the agent profile
+      if (!agent.completedJobIds) agent.completedJobIds = [];
+      agent.completedJobIds.push(Number(id));
+      agent.updatedAt = Date.now();
       saveAgents(agentsData);
+      console.log(`💰 Agent ${agentKey} earned ${earnedAmount} from job #${id}. Total earned: ${agent.totalEarned}`);
+    } else {
+      console.warn(`⚠️ Agent profile not found for ${agentKey} - earnings not recorded on profile`);
     }
   }
 
-  console.log(`🎉 Job #${id} completed!`);
+  console.log(`🎉 Job #${id} completed! Payment: ${earnedAmount}`);
 
   res.json({ success: true, job });
 });
@@ -974,10 +1005,27 @@ app.get('/api/user/:address/agent', (req: Request, res: Response) => {
   const agent = agentsData.agents[userAddr];
 
   if (!agent) {
-    return res.json({ agent: null, isRegistered: false });
+    return res.json({ agent: null, isRegistered: false, jobHistory: [] });
   }
 
-  res.json({ agent, isRegistered: true });
+  // Get job history for this agent
+  const jobsData = loadJobs();
+  const allJobs = Object.values(jobsData.jobs);
+  const agentJobs = allJobs.filter((j: any) => j.agent?.toLowerCase() === userAddr);
+  const completedJobs = agentJobs.filter((j: any) => j.status === 'COMPLETED');
+  const activeJobs = agentJobs.filter((j: any) => j.status === 'IN_PROGRESS' || j.status === 'PENDING_APPROVAL');
+
+  res.json({ 
+    agent, 
+    isRegistered: true,
+    jobHistory: completedJobs.sort((a: any, b: any) => (b.completedAt || b.updatedAt) - (a.completedAt || a.updatedAt)),
+    activeJobs: activeJobs.sort((a: any, b: any) => b.updatedAt - a.updatedAt),
+    stats: {
+      totalEarned: agent.totalEarned || 0,
+      jobsCompleted: agent.jobsCompleted || 0,
+      activeJobCount: activeJobs.length,
+    },
+  });
 });
 
 /**

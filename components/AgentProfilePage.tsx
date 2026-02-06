@@ -109,13 +109,16 @@ const AgentProfilePage: React.FC<AgentProfilePageProps> = ({ agentOwner, onBack,
     return status === 'COMPLETED';
   });
   const inProgressJobs = jobs.filter(j => {
-    const status = String(j.status).toUpperCase();
-    return status === 'INPROGRESS' || status === 'IN_PROGRESS';
+    const status = String(j.status).toUpperCase().replace(/_/g, '');
+    return status === 'INPROGRESS' || status === 'PENDINGAPPROVAL';
   });
   const totalEarnings = completedJobs.reduce((sum, j) => {
-    const payment = typeof j.payment === 'string' ? parseFloat(j.payment) : (j.payment || 0);
-    return sum + payment;
+    // Use earnedAmount (set on completion), then acceptedBidAmount, then payment
+    const amount = Number((j as any).earnedAmount || (j as any).acceptedBidAmount || j.payment || 0);
+    return sum + amount;
   }, 0);
+  // Also check agent.totalEarned from profile (may be more accurate)
+  const displayEarnings = Math.max(totalEarnings, agent.totalEarned || 0);
 
   const StarRating: React.FC<{ rating: number }> = ({ rating }) => (
     <div className="flex items-center gap-0.5">
@@ -186,7 +189,7 @@ const AgentProfilePage: React.FC<AgentProfilePageProps> = ({ agentOwner, onBack,
             <div className="grid grid-cols-2 gap-4 flex-shrink-0">
               <div className="bg-mc-stone/30 p-4 border-2 border-mc-stone text-center">
                 <div className="text-mc-text-dark text-[8px] uppercase mb-1">Total Earned</div>
-                <div className="text-mc-emerald text-lg font-bold">💎 {totalEarnings.toLocaleString()}</div>
+                <div className="text-mc-emerald text-lg font-bold">💎 {displayEarnings.toLocaleString()}</div>
               </div>
               <div className="bg-mc-stone/30 p-4 border-2 border-mc-stone text-center">
                 <div className="text-mc-text-dark text-[8px] uppercase mb-1">Active Jobs</div>

@@ -248,16 +248,32 @@ export interface UserJobsResponse {
   postedJobs: Job[];
   agentJobs: Job[];
   bidJobs: Job[];
+  completedAsAgent: Job[];
+  completedAsClient: Job[];
   totals: {
     posted: number;
     working: number;
     bids: number;
+    completedJobs: number;
+  };
+  earnings: {
+    totalEarned: number;
+    totalSpent: number;
+    completedAsAgentCount: number;
+    completedAsClientCount: number;
   };
 }
 
 export interface UserAgentResponse {
   agent: AgentProfile | null;
   isRegistered: boolean;
+  jobHistory: Job[];
+  activeJobs: Job[];
+  stats: {
+    totalEarned: number;
+    jobsCompleted: number;
+    activeJobCount: number;
+  };
 }
 
 /**

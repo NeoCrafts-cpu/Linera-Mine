@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { getJobs, getJobsFromChain, getAgents, getAgentsFromChain, isLineraEnabled, getCurrentUserAddress } from '../services/api';
-import { Job, AgentProfile, JobStatus, Owner } from '../types';
+import { getCurrentUserAddress } from '../services/api';
+import { Job, AgentProfile, Owner } from '../types';
 import { JobCard } from './JobCard';
 import { Spinner } from './Spinner';
-import { JobStatusBadge } from './JobStatusBadge';
 import * as backendApi from '../services/backendApi';
 
 interface MyDashboardProps {
@@ -18,6 +17,10 @@ const MyDashboard: React.FC<MyDashboardProps> = ({ onSelectJob }) => {
   const [biddedJobs, setBiddedJobs] = useState<Job[]>([]);
   const [completedJobs, setCompletedJobs] = useState<Job[]>([]);
   const [myAgentProfile, setMyAgentProfile] = useState<AgentProfile | null>(null);
+  const [agentJobHistory, setAgentJobHistory] = useState<Job[]>([]);
+  const [totalEarned, setTotalEarned] = useState(0);
+  const [totalSpent, setTotalSpent] = useState(0);
+  const [agentStats, setAgentStats] = useState<{ totalEarned: number; jobsCompleted: number; activeJobCount: number } | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabType>('posted');
   
@@ -25,12 +28,6 @@ const MyDashboard: React.FC<MyDashboardProps> = ({ onSelectJob }) => {
   const currentUser = localStorage.getItem('linera_mine_web3_address') 
     || localStorage.getItem('linera_user_address')
     || getCurrentUserAddress();
-
-  // Helper for case-insensitive address comparison
-  const addressMatch = (addr1: string | undefined | null, addr2: string | undefined | null): boolean => {
-    if (!addr1 || !addr2) return false;
-    return addr1.toLowerCase() === addr2.toLowerCase();
-  };
 
   const fetchData = useCallback(async () => {
     if (!currentUser) {
@@ -41,42 +38,59 @@ const MyDashboard: React.FC<MyDashboardProps> = ({ onSelectJob }) => {
     try {
       setLoading(true);
       
-      // Fetch user-specific data from backend using new endpoints
+      // Fetch user-specific data from backend
       const [userJobsData, userAgentData] = await Promise.all([
         backendApi.getUserJobs(currentUser),
         backendApi.getUserAgent(currentUser),
       ]);
       
       console.log('✅ Fetched user data:', {
-        posted: userJobsData.postedJobs.length,
-        working: userJobsData.agentJobs.length,
-        bids: userJobsData.bidJobs.length,
+        posted: userJobsData.totals.posted,
+        working: userJobsData.totals.working,
+        bids: userJobsData.totals.bids,
+        completed: userJobsData.totals.completedJobs,
+        earned: userJobsData.earnings.totalEarned,
+        spent: userJobsData.earnings.totalSpent,
         agent: userAgentData.isRegistered,
       });
 
       // Separate jobs by status
       const posted = userJobsData.postedJobs || [];
       const working = (userJobsData.agentJobs || []).filter(j => {
-        const statusUpper = String(j.status).toUpperCase();
-        return statusUpper === 'INPROGRESS' || statusUpper === 'IN_PROGRESS';
+        const s = String(j.status).toUpperCase().replace(/_/g, '');
+        return s === 'INPROGRESS' || s === 'PENDINGAPPROVAL';
       });
       const bidded = userJobsData.bidJobs || [];
       
-      // Completed jobs are from both posted and agent jobs
+      // Completed jobs from both sides
       const completed = [
-        ...posted.filter(j => String(j.status).toUpperCase() === 'COMPLETED'),
-        ...(userJobsData.agentJobs || []).filter(j => String(j.status).toUpperCase() === 'COMPLETED'),
+        ...(userJobsData.completedAsAgent || []),
+        ...(userJobsData.completedAsClient || []),
       ];
+      // Deduplicate by id
+      const seen = new Set<number>();
+      const uniqueCompleted = completed.filter(j => {
+        if (seen.has(j.id)) return false;
+        seen.add(j.id);
+        return true;
+      });
 
       setPostedJobs(posted);
       setWorkingJobs(working);
       setBiddedJobs(bidded);
-      setCompletedJobs(completed);
+      setCompletedJobs(uniqueCompleted);
+      
+      // Use earnings from backend (calculated server-side)
+      setTotalEarned(userJobsData.earnings?.totalEarned || 0);
+      setTotalSpent(userJobsData.earnings?.totalSpent || 0);
+      
+      // Agent profile + job history
       setMyAgentProfile(userAgentData.agent);
+      setAgentJobHistory(userAgentData.jobHistory || []);
+      setAgentStats(userAgentData.stats || null);
       
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error);
-      // Reset state on error
       setPostedJobs([]);
       setWorkingJobs([]);
       setBiddedJobs([]);
@@ -89,19 +103,6 @@ const MyDashboard: React.FC<MyDashboardProps> = ({ onSelectJob }) => {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
-
-  // Stats - ensure payment is parsed as number
-  const parsePayment = (payment: any): number => {
-    if (typeof payment === 'string') return parseFloat(payment) || 0;
-    return payment || 0;
-  };
-  
-  const totalEarnings = completedJobs
-    .filter(j => addressMatch(j.agent, currentUser))
-    .reduce((sum, j) => sum + parsePayment(j.payment), 0);
-  const totalSpent = completedJobs
-    .filter(j => addressMatch(j.client, currentUser))
-    .reduce((sum, j) => sum + parsePayment(j.payment), 0);
 
   const TabButton: React.FC<{ tab: TabType; label: string; count: number; icon: string }> = ({ tab, label, count, icon }) => (
     <button
@@ -162,7 +163,6 @@ const MyDashboard: React.FC<MyDashboardProps> = ({ onSelectJob }) => {
         <p className="text-mc-text-dark text-[10px] mt-1">
           Track your jobs, bids, and earnings
         </p>
-        {/* Show current wallet address */}
         {currentUser && (
           <div className="mt-2 px-3 py-2 bg-mc-stone/30 border border-mc-stone inline-block">
             <span className="text-mc-text-dark text-[9px]">Logged in as: </span>
@@ -179,7 +179,7 @@ const MyDashboard: React.FC<MyDashboardProps> = ({ onSelectJob }) => {
       </div>
 
       {/* Stats Overview */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
         <div className="bg-mc-ui-bg-dark border-4 border-mc-stone p-4">
           <div className="text-mc-text-dark text-[8px] uppercase mb-1">Posted Jobs</div>
           <div className="text-mc-gold text-2xl font-bold">{postedJobs.length}</div>
@@ -189,9 +189,13 @@ const MyDashboard: React.FC<MyDashboardProps> = ({ onSelectJob }) => {
           <div className="text-mc-diamond text-2xl font-bold">{workingJobs.length}</div>
         </div>
         <div className="bg-mc-ui-bg-dark border-4 border-mc-stone p-4">
+          <div className="text-mc-text-dark text-[8px] uppercase mb-1">Completed</div>
+          <div className="text-mc-amethyst text-2xl font-bold">{completedJobs.length}</div>
+        </div>
+        <div className="bg-mc-ui-bg-dark border-4 border-mc-emerald p-4">
           <div className="text-mc-text-dark text-[8px] uppercase mb-1">Total Earned</div>
           <div className="text-mc-emerald text-2xl font-bold flex items-center gap-1">
-            💎 {totalEarnings.toLocaleString()}
+            💎 {totalEarned.toLocaleString()}
           </div>
         </div>
         <div className="bg-mc-ui-bg-dark border-4 border-mc-stone p-4">
@@ -205,7 +209,7 @@ const MyDashboard: React.FC<MyDashboardProps> = ({ onSelectJob }) => {
       {/* Agent Profile Summary */}
       {myAgentProfile && (
         <div className="bg-mc-ui-bg-dark border-4 border-mc-diamond mb-8 p-6">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-4">
             <div className="flex items-center gap-4">
               <div className="w-16 h-16 bg-mc-diamond/20 rounded-sm border-2 border-mc-diamond flex items-center justify-center">
                 <span className="text-3xl">🤖</span>
@@ -215,18 +219,48 @@ const MyDashboard: React.FC<MyDashboardProps> = ({ onSelectJob }) => {
                   {myAgentProfile.name}
                 </h3>
                 <p className="text-mc-text-dark text-[10px]">{myAgentProfile.serviceDescription}</p>
-                <div className="flex items-center gap-4 mt-2">
-                  <span className="text-mc-gold text-[10px]">⭐ {myAgentProfile.rating.toFixed(1)}</span>
+                <div className="flex items-center gap-4 mt-2 flex-wrap">
+                  <span className="text-mc-gold text-[10px]">⭐ {(myAgentProfile.rating || 0).toFixed(1)}</span>
                   <span className="text-mc-text-dark text-[10px]">|</span>
-                  <span className="text-mc-emerald text-[10px]">✓ {myAgentProfile.jobsCompleted} jobs</span>
+                  <span className="text-mc-emerald text-[10px]">✓ {agentStats?.jobsCompleted || myAgentProfile.jobsCompleted || 0} jobs completed</span>
+                  <span className="text-mc-text-dark text-[10px]">|</span>
+                  <span className="text-mc-diamond text-[10px]">💎 {(agentStats?.totalEarned || myAgentProfile.totalEarned || 0).toLocaleString()} earned</span>
                 </div>
               </div>
             </div>
             <div className="text-right">
               <div className="text-mc-text-dark text-[8px] uppercase">Agent Status</div>
               <div className="text-mc-emerald text-sm font-bold">Active</div>
+              {agentStats && agentStats.activeJobCount > 0 && (
+                <div className="text-mc-diamond text-[9px] mt-1">{agentStats.activeJobCount} active job(s)</div>
+              )}
             </div>
           </div>
+
+          {/* Agent Job History */}
+          {agentJobHistory.length > 0 && (
+            <div className="mt-4 pt-4 border-t-2 border-mc-stone">
+              <div className="text-mc-text-dark text-[8px] uppercase mb-2">📋 Recent Completed Jobs as Agent</div>
+              <div className="space-y-2">
+                {agentJobHistory.slice(0, 5).map(j => (
+                  <div key={j.id}
+                    onClick={() => onSelectJob(j.id)}
+                    className="flex items-center justify-between bg-mc-stone/20 p-2 border border-mc-stone hover:border-mc-diamond cursor-pointer transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-mc-emerald text-[10px]">✓</span>
+                      <span className="text-mc-text-light text-[10px]">
+                        {(j as any).title || `Job #${j.id}`}
+                      </span>
+                    </div>
+                    <span className="text-mc-emerald text-[10px] font-bold">
+                      💎 {Number((j as any).earnedAmount || (j as any).acceptedBidAmount || j.payment || 0).toLocaleString()}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
