@@ -9,22 +9,13 @@ import React, { useState, useEffect } from 'react';
 import { useWeb3Wallet, isMetaMaskInstalled } from '../hooks/useWeb3Wallet';
 import * as backendApi from '../services/backendApi';
 
-// Check if Dynamic is enabled
+// Check if Dynamic is enabled via environment variable
 const DYNAMIC_ENABLED = !!import.meta.env.VITE_DYNAMIC_ENVIRONMENT_ID;
 
-// Try to import Dynamic SDK components
-let DynamicWidget: React.ComponentType<any> | null = null;
-let useDynamicContext: (() => any) | null = null;
-
-if (DYNAMIC_ENABLED) {
-  try {
-    const dynamicSdk = require('@dynamic-labs/sdk-react-core');
-    DynamicWidget = dynamicSdk.DynamicWidget;
-    useDynamicContext = dynamicSdk.useDynamicContext;
-  } catch (e) {
-    console.warn('Dynamic SDK not available');
-  }
-}
+// Dynamic SDK will be loaded dynamically to avoid build errors when not installed
+// For now, we'll show a placeholder for Dynamic until packages are installed
+const DynamicWidget: React.ComponentType<any> | null = null;
+const useDynamicContext: (() => any) | null = null;
 
 interface WalletConnectModalProps {
   isOpen: boolean;
@@ -143,13 +134,13 @@ export const WalletConnectModal: React.FC<WalletConnectModalProps> = ({
       onClick={onClose}
     >
       <div 
-        className="bg-mc-ui-bg border-4 border-mc-ui-border-dark p-6 max-w-md w-full mx-4 animate-mc-pop-in"
+        className="bg-mc-ui-bg-dark border-4 border-mc-stone p-6 max-w-md w-full mx-4 animate-mc-pop-in"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="text-center mb-6">
           <div className="text-6xl mb-4">⛓️</div>
-          <h2 className="text-xl font-bold text-mc-text-light mb-2">
+          <h2 className="text-xl font-bold text-mc-text-light mb-2" style={{textShadow: '2px 2px #1B1B2F'}}>
             Connect Wallet
           </h2>
           <p className="text-mc-text-dark text-sm">
@@ -160,14 +151,14 @@ export const WalletConnectModal: React.FC<WalletConnectModalProps> = ({
 
         {/* Error message */}
         {displayError && (
-          <div className="mb-4 p-3 bg-mc-redstone/10 border-2 border-mc-redstone/30">
+          <div className="mb-4 p-3 bg-mc-redstone/20 border-2 border-mc-redstone">
             <p className="text-mc-redstone text-sm">{displayError}</p>
           </div>
         )}
 
         {/* Already connected address */}
         {(address || dynamicAddress) && (
-          <div className="mb-4 p-3 bg-mc-emerald/10 border-2 border-mc-emerald/30">
+          <div className="mb-4 p-3 bg-mc-emerald/20 border-2 border-mc-emerald">
             <p className="text-mc-emerald text-sm">
               ✅ Connected: {`${(address || dynamicAddress || '').slice(0, 6)}...${(address || dynamicAddress || '').slice(-4)}`}
             </p>
@@ -178,7 +169,7 @@ export const WalletConnectModal: React.FC<WalletConnectModalProps> = ({
         <div className="space-y-3 mb-4">
           {/* Dynamic Wallet Option (if enabled) */}
           {DYNAMIC_ENABLED && DynamicWidget && (
-            <div className="p-4 bg-mc-ui-bg-dark border-2 border-mc-diamond/50 rounded-sm">
+            <div className="p-4 bg-mc-obsidian border-2 border-mc-diamond rounded-sm">
               <div className="flex items-center gap-3 mb-3">
                 <span className="text-2xl">✨</span>
                 <div>
@@ -216,7 +207,7 @@ export const WalletConnectModal: React.FC<WalletConnectModalProps> = ({
           )}
 
           {/* MetaMask Option */}
-          <div className="p-4 bg-mc-ui-bg-dark border-2 border-mc-gold/50 rounded-sm">
+          <div className="p-4 bg-mc-obsidian border-2 border-mc-gold rounded-sm">
             <div className="flex items-center gap-3 mb-3">
               <span className="text-2xl">🦊</span>
               <div>
@@ -226,7 +217,7 @@ export const WalletConnectModal: React.FC<WalletConnectModalProps> = ({
             </div>
             
             {!hasMetaMask && (
-              <div className="mb-3 p-2 bg-mc-redstone/10 border border-mc-redstone/30 rounded-sm">
+              <div className="mb-3 p-2 bg-mc-redstone/20 border border-mc-redstone rounded-sm">
                 <p className="text-mc-redstone text-xs">⚠️ MetaMask not detected</p>
               </div>
             )}

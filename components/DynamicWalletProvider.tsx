@@ -8,6 +8,9 @@
  * - Better mobile experience
  * 
  * Get your environment ID from: https://app.dynamic.xyz/
+ * 
+ * NOTE: Dynamic SDK packages must be installed separately:
+ * npm install @dynamic-labs/sdk-react-core @dynamic-labs/ethereum
  */
 
 import React from 'react';
@@ -15,26 +18,11 @@ import React from 'react';
 // Get Dynamic environment ID from env or use default for development
 const DYNAMIC_ENVIRONMENT_ID = import.meta.env.VITE_DYNAMIC_ENVIRONMENT_ID || '';
 
-// Dynamically import SDK to avoid errors when not installed
-let DynamicContextProvider: React.ComponentType<any> | null = null;
-let DynamicWidget: React.ComponentType<any> | null = null;
-let EthereumWalletConnectors: any = null;
-
-// Only try to load Dynamic SDK if environment ID is set
-if (DYNAMIC_ENVIRONMENT_ID) {
-  try {
-    // @ts-ignore - Dynamic import
-    const coreSdk = require('@dynamic-labs/sdk-react-core');
-    DynamicContextProvider = coreSdk.DynamicContextProvider;
-    DynamicWidget = coreSdk.DynamicWidget;
-    
-    // @ts-ignore - Dynamic import
-    const ethSdk = require('@dynamic-labs/ethereum');
-    EthereumWalletConnectors = ethSdk.EthereumWalletConnectors;
-  } catch (e) {
-    console.warn('⚠️ Dynamic SDK not installed. Run: npm install @dynamic-labs/sdk-react-core @dynamic-labs/ethereum');
-  }
-}
+// SDK components - will remain null until packages are installed
+// To enable Dynamic, install: npm install @dynamic-labs/sdk-react-core @dynamic-labs/ethereum
+const DynamicContextProvider: React.ComponentType<any> | null = null;
+const DynamicWidget: React.ComponentType<any> | null = null;
+const EthereumWalletConnectors: any = null;
 
 interface DynamicWalletProviderProps {
   children: React.ReactNode;
