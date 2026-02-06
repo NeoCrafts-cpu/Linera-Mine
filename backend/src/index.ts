@@ -229,8 +229,7 @@ function initSeedData() {
   }
 }
 
-// Call on startup
-initSeedData();
+// NOTE: initSeedData() is called AFTER helper functions are defined (see below)
 
 // ==================== DATA HELPERS ====================
 
@@ -267,6 +266,9 @@ const saveSessions = (data: any) => saveData(SESSIONS_FILE, data);
 
 const loadApiKeys = () => loadData<{ apiKeys: Record<string, any> }>(API_KEYS_FILE, { apiKeys: {} });
 const saveApiKeys = (data: any) => saveData(API_KEYS_FILE, data);
+
+// Initialize seed data on startup (MUST be after helper functions are defined)
+initSeedData();
 
 // ==================== AUTH MIDDLEWARE ====================
 
