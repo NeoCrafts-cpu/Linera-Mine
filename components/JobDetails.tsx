@@ -274,7 +274,7 @@ const JobDetails: React.FC<JobDetailsProps> = ({ jobId, onBack }) => {
                 </div>
               </div>
               
-              {/* Action buttons based on status */}
+              {/* Action buttons based on status - inside agent section */}
               <div className="flex gap-2">
                 {/* Submit Deliverable button - ONLY for assigned agent */}
                 {(job.status === 'InProgress' || job.status === 'IN_PROGRESS' || job.status === 'INPROGRESS') && 
@@ -288,32 +288,6 @@ const JobDetails: React.FC<JobDetailsProps> = ({ jobId, onBack }) => {
                   </button>
                 )}
                 
-                {/* Complete job button - ONLY for client (show when in progress OR pending approval after deliverable submitted) */}
-                {(job.status === 'InProgress' || job.status === 'IN_PROGRESS' || job.status === 'INPROGRESS' ||
-                  job.status === 'PendingApproval' || job.status === 'PENDING_APPROVAL' || job.status === 'PENDINGAPPROVAL') && 
-                 addressMatch(job.client, currentUser) && (
-                  <button
-                    onClick={handleCompleteJob}
-                    disabled={isCompleting}
-                    className="bg-mc-emerald text-white font-bold py-2 px-4 border-4 border-t-mc-ui-border-light border-l-mc-ui-border-light border-b-mc-emerald-dark border-r-mc-emerald-dark text-[10px] uppercase tracking-wider disabled:bg-mc-stone disabled:cursor-wait hover:brightness-110 transition-all flex items-center gap-2"
-                  >
-                    {isCompleting ? (
-                      <>
-                        <svg className="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        Completing...
-                      </>
-                    ) : (
-                      <>
-                        <span>✓</span>
-                        Complete Job
-                      </>
-                    )}
-                  </button>
-                )}
-                
                 {(job.status === 'Completed' || job.status === 'COMPLETED') && (
                   <button
                     onClick={() => setShowRateModal(true)}
@@ -323,6 +297,49 @@ const JobDetails: React.FC<JobDetailsProps> = ({ jobId, onBack }) => {
                     Rate Agent
                   </button>
                 )}
+              </div>
+            </div>
+          )}
+
+          {/* Complete Job Button - Separate section for client when deliverable is pending approval */}
+          {job.agent && 
+           (job.status === 'PendingApproval' || job.status === 'PENDING_APPROVAL' || job.status === 'PENDINGAPPROVAL' ||
+            job.status === 'InProgress' || job.status === 'IN_PROGRESS' || job.status === 'INPROGRESS') && 
+           addressMatch(job.client, currentUser) && (
+            <div className="bg-mc-gold/10 border-2 border-mc-gold p-4 mt-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-mc-gold text-[10px] uppercase font-bold">
+                    {(job.status === 'PendingApproval' || job.status === 'PENDING_APPROVAL' || job.status === 'PENDINGAPPROVAL') 
+                      ? '📦 Deliverable Submitted - Review & Approve' 
+                      : '⏳ Job In Progress'}
+                  </div>
+                  <div className="text-mc-text-dark text-xs mt-1">
+                    {(job.status === 'PendingApproval' || job.status === 'PENDING_APPROVAL' || job.status === 'PENDINGAPPROVAL')
+                      ? 'The agent has submitted their work. Review and complete the job to release payment.'
+                      : 'Waiting for the agent to submit their deliverable.'}
+                  </div>
+                </div>
+                <button
+                  onClick={handleCompleteJob}
+                  disabled={isCompleting}
+                  className="bg-mc-emerald text-white font-bold py-3 px-6 border-4 border-t-mc-ui-border-light border-l-mc-ui-border-light border-b-mc-emerald-dark border-r-mc-emerald-dark text-xs uppercase tracking-wider disabled:bg-mc-stone disabled:cursor-wait hover:brightness-110 transition-all flex items-center gap-2"
+                >
+                  {isCompleting ? (
+                    <>
+                      <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Completing...
+                    </>
+                  ) : (
+                    <>
+                      <span>✓</span>
+                      Complete Job & Release Payment
+                    </>
+                  )}
+                </button>
               </div>
             </div>
           )}
