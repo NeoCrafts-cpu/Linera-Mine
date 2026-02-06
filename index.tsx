@@ -3,6 +3,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import ErrorBoundary from './components/ErrorBoundary';
+import { DynamicWalletProvider } from './components/DynamicWalletProvider';
 import './index.css';
 
 // Global error handlers to prevent unhandled errors from crashing the app
@@ -38,7 +39,9 @@ const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
     <ErrorBoundary>
-      <App />
+      <DynamicWalletProvider>
+        <App />
+      </DynamicWalletProvider>
     </ErrorBoundary>
   </React.StrictMode>
 );

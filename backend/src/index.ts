@@ -27,7 +27,7 @@ const corsOptions = {
     callback(null, true);
   },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Key'],
   credentials: true,
 };
 
@@ -48,6 +48,7 @@ const USERS_FILE = path.join(DATA_DIR, 'users.json');
 const JOBS_FILE = path.join(DATA_DIR, 'jobs.json');
 const AGENTS_FILE = path.join(DATA_DIR, 'agents.json');
 const SESSIONS_FILE = path.join(DATA_DIR, 'sessions.json');
+const API_KEYS_FILE = path.join(DATA_DIR, 'api_keys.json');
 
 // Initialize data files
 function initDataFile(filePath: string, defaultData: any) {
@@ -60,6 +61,7 @@ initDataFile(USERS_FILE, { users: {} });
 initDataFile(JOBS_FILE, { jobs: {}, jobCounter: 1 });
 initDataFile(AGENTS_FILE, { agents: {} });
 initDataFile(SESSIONS_FILE, { sessions: {} });
+initDataFile(API_KEYS_FILE, { apiKeys: {} });
 
 // ==================== DATA HELPERS ====================
 
@@ -93,6 +95,9 @@ const saveAgents = (data: any) => saveData(AGENTS_FILE, data);
 
 const loadSessions = () => loadData<{ sessions: Record<string, any> }>(SESSIONS_FILE, { sessions: {} });
 const saveSessions = (data: any) => saveData(SESSIONS_FILE, data);
+
+const loadApiKeys = () => loadData<{ apiKeys: Record<string, any> }>(API_KEYS_FILE, { apiKeys: {} });
+const saveApiKeys = (data: any) => saveData(API_KEYS_FILE, data);
 
 // ==================== AUTH MIDDLEWARE ====================
 
@@ -130,6 +135,60 @@ function authMiddleware(req: AuthRequest, res: Response, next: NextFunction) {
 
   req.user = user;
   req.sessionToken = token;
+  next();
+}
+
+// ==================== API KEY AUTH MIDDLEWARE ====================
+
+interface ApiKeyRequest extends Request {
+  agent?: any;
+  apiKey?: string;
+}
+
+/**
+ * Generate a random API key
+ */
+function generateApiKey(): string {
+  const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let key = 'lm_'; // Linera Mine prefix
+  for (let i = 0; i < 48; i++) {
+    key += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return key;
+}
+
+/**
+ * Middleware to authenticate AI agents via API key
+ */
+function apiKeyMiddleware(req: ApiKeyRequest, res: Response, next: NextFunction) {
+  const apiKey = req.headers['x-api-key'] as string;
+  
+  if (!apiKey) {
+    return res.status(401).json({ error: 'API key required. Use X-API-Key header.' });
+  }
+
+  const apiKeysData = loadApiKeys();
+  const keyData = apiKeysData.apiKeys[apiKey];
+
+  if (!keyData) {
+    return res.status(401).json({ error: 'Invalid API key' });
+  }
+
+  if (!keyData.active) {
+    return res.status(401).json({ error: 'API key is disabled' });
+  }
+
+  // Update last used timestamp
+  keyData.lastUsedAt = Date.now();
+  keyData.usageCount = (keyData.usageCount || 0) + 1;
+  saveApiKeys(apiKeysData);
+
+  // Load agent data
+  const agentsData = loadAgents();
+  const agent = agentsData.agents[keyData.agentOwner];
+
+  req.agent = agent;
+  req.apiKey = apiKey;
   next();
 }
 
@@ -854,6 +913,407 @@ app.get('/api/leaderboard', (req: Request, res: Response) => {
 
 // ==================== STATS ====================
 
+// ==================== AGENT API (FOR AI AGENTS) ====================
+
+/**
+ * Register an AI agent and get an API key
+ * This allows AI bots to interact with the marketplace programmatically
+ */
+app.post('/api/agent-api/register', (req: Request, res: Response) => {
+  const { name, serviceDescription, skills, hourlyRate, webhookUrl } = req.body;
+
+  if (!name || !serviceDescription) {
+    return res.status(400).json({ 
+      error: 'Name and serviceDescription are required',
+      example: {
+        name: 'My AI Agent',
+        serviceDescription: 'I analyze smart contracts for security vulnerabilities',
+        skills: ['security', 'audit', 'solidity'],
+        hourlyRate: 50,
+        webhookUrl: 'https://my-agent.example.com/webhook'
+      }
+    });
+  }
+
+  // Generate unique agent owner ID
+  const agentOwner = `agent-${uuidv4()}`;
+  
+  // Generate API key
+  const apiKey = generateApiKey();
+  
+  // Create agent profile
+  const agentsData = loadAgents();
+  agentsData.agents[agentOwner] = {
+    owner: agentOwner,
+    name,
+    serviceDescription,
+    skills: skills || [],
+    hourlyRate: hourlyRate || 0,
+    portfolioUrls: [],
+    jobsCompleted: 0,
+    rating: 0,
+    totalRatingPoints: 0,
+    totalRatings: 0,
+    totalEarned: 0,
+    verified: false,
+    availability: true,
+    isAiAgent: true,
+    webhookUrl: webhookUrl || null,
+    registeredAt: Date.now(),
+    updatedAt: Date.now(),
+  };
+  saveAgents(agentsData);
+
+  // Store API key
+  const apiKeysData = loadApiKeys();
+  apiKeysData.apiKeys[apiKey] = {
+    agentOwner,
+    active: true,
+    createdAt: Date.now(),
+    lastUsedAt: null,
+    usageCount: 0,
+  };
+  saveApiKeys(apiKeysData);
+
+  console.log(`🤖 AI Agent registered: ${name} (${agentOwner})`);
+
+  res.json({
+    success: true,
+    message: 'AI Agent registered successfully! Save your API key securely - it will not be shown again.',
+    apiKey,
+    agentOwner,
+    agent: agentsData.agents[agentOwner],
+    documentation: {
+      baseUrl: 'https://linera-mine-backend.onrender.com',
+      endpoints: {
+        listJobs: 'GET /api/agent-api/jobs',
+        getJob: 'GET /api/agent-api/jobs/:id',
+        placeBid: 'POST /api/agent-api/jobs/:id/bid',
+        myJobs: 'GET /api/agent-api/my-jobs',
+        submitDeliverable: 'POST /api/agent-api/jobs/:id/deliver',
+        profile: 'GET /api/agent-api/profile',
+      },
+      authentication: 'Add header: X-API-Key: <your-api-key>',
+    },
+  });
+});
+
+/**
+ * Get agent profile (authenticated)
+ */
+app.get('/api/agent-api/profile', apiKeyMiddleware, (req: ApiKeyRequest, res: Response) => {
+  res.json({
+    success: true,
+    agent: req.agent,
+  });
+});
+
+/**
+ * Update agent profile (authenticated)
+ */
+app.put('/api/agent-api/profile', apiKeyMiddleware, (req: ApiKeyRequest, res: Response) => {
+  const { name, serviceDescription, skills, hourlyRate, availability, webhookUrl } = req.body;
+
+  const agentsData = loadAgents();
+  const agent = agentsData.agents[req.agent.owner];
+
+  if (!agent) {
+    return res.status(404).json({ error: 'Agent not found' });
+  }
+
+  if (name) agent.name = name;
+  if (serviceDescription) agent.serviceDescription = serviceDescription;
+  if (skills) agent.skills = skills;
+  if (hourlyRate !== undefined) agent.hourlyRate = hourlyRate;
+  if (availability !== undefined) agent.availability = availability;
+  if (webhookUrl !== undefined) agent.webhookUrl = webhookUrl;
+  agent.updatedAt = Date.now();
+
+  saveAgents(agentsData);
+
+  res.json({
+    success: true,
+    agent,
+  });
+});
+
+/**
+ * List available jobs for AI agents
+ */
+app.get('/api/agent-api/jobs', apiKeyMiddleware, (req: ApiKeyRequest, res: Response) => {
+  const { status = 'POSTED', category, minPayment, maxPayment, skill, limit = 50 } = req.query;
+  
+  const jobsData = loadJobs();
+  let jobs = Object.values(jobsData.jobs);
+
+  // Filter by status (default: only POSTED jobs that agents can bid on)
+  if (status !== 'all') {
+    jobs = jobs.filter((j: any) => j.status === status);
+  }
+
+  // Filter by category
+  if (category) {
+    jobs = jobs.filter((j: any) => j.category === category);
+  }
+
+  // Filter by payment range
+  if (minPayment) {
+    jobs = jobs.filter((j: any) => j.payment >= Number(minPayment));
+  }
+  if (maxPayment) {
+    jobs = jobs.filter((j: any) => j.payment <= Number(maxPayment));
+  }
+
+  // Filter by skill/tag
+  if (skill) {
+    const skillLower = String(skill).toLowerCase();
+    jobs = jobs.filter((j: any) => 
+      j.tags?.some((t: string) => t.toLowerCase().includes(skillLower))
+    );
+  }
+
+  // Sort by payment (highest first)
+  jobs.sort((a: any, b: any) => b.payment - a.payment);
+
+  // Apply limit
+  jobs = jobs.slice(0, Number(limit));
+
+  res.json({
+    success: true,
+    jobs: jobs.map((j: any) => ({
+      id: j.id,
+      title: j.title,
+      description: j.description,
+      payment: j.payment,
+      category: j.category,
+      tags: j.tags,
+      status: j.status,
+      bidCount: j.bids?.length || 0,
+      createdAt: j.createdAt,
+    })),
+    total: jobs.length,
+  });
+});
+
+/**
+ * Get job details for AI agents
+ */
+app.get('/api/agent-api/jobs/:id', apiKeyMiddleware, (req: ApiKeyRequest, res: Response) => {
+  const { id } = req.params;
+  const jobsData = loadJobs();
+  const job = jobsData.jobs[id];
+
+  if (!job) {
+    return res.status(404).json({ error: 'Job not found' });
+  }
+
+  // Check if this agent has bid on the job
+  const myBid = job.bids?.find((b: any) => b.agent === req.agent?.owner);
+  const isAssigned = job.agent === req.agent?.owner;
+
+  res.json({
+    success: true,
+    job: {
+      id: job.id,
+      title: job.title,
+      description: job.description,
+      payment: job.payment,
+      category: job.category,
+      tags: job.tags,
+      status: job.status,
+      bidCount: job.bids?.length || 0,
+      createdAt: job.createdAt,
+      myBid: myBid || null,
+      isAssigned,
+      milestones: isAssigned ? job.milestones : undefined,
+    },
+  });
+});
+
+/**
+ * Place a bid on a job (for AI agents)
+ */
+app.post('/api/agent-api/jobs/:id/bid', apiKeyMiddleware, (req: ApiKeyRequest, res: Response) => {
+  const { id } = req.params;
+  const { amount, proposal, estimatedDays } = req.body;
+
+  if (!amount) {
+    return res.status(400).json({ 
+      error: 'Bid amount is required',
+      example: {
+        amount: 100,
+        proposal: 'I can complete this task using my specialized ML models...',
+        estimatedDays: 3
+      }
+    });
+  }
+
+  const jobsData = loadJobs();
+  const job = jobsData.jobs[id];
+
+  if (!job) {
+    return res.status(404).json({ error: 'Job not found' });
+  }
+
+  if (job.status !== 'POSTED') {
+    return res.status(400).json({ error: 'Job is not accepting bids', currentStatus: job.status });
+  }
+
+  // Check if agent already bid
+  const agentOwner = req.agent?.owner;
+  const existingBid = job.bids?.find((b: any) => b.agent === agentOwner);
+  if (existingBid) {
+    return res.status(400).json({ error: 'You have already placed a bid on this job', existingBid });
+  }
+
+  const bid = {
+    bidId: (job.bids?.length || 0) + 1,
+    agent: agentOwner,
+    amount: Number(amount),
+    proposal: proposal || `Automated bid from AI Agent: ${req.agent?.name}`,
+    estimatedDays: estimatedDays || null,
+    isAiAgent: true,
+    createdAt: Date.now(),
+  };
+
+  if (!job.bids) job.bids = [];
+  job.bids.push(bid);
+  job.updatedAt = Date.now();
+  saveJobs(jobsData);
+
+  console.log(`🤖 AI Agent bid on job #${id}: ${req.agent?.name} - $${amount}`);
+
+  res.json({
+    success: true,
+    message: 'Bid placed successfully',
+    bid,
+  });
+});
+
+/**
+ * Get jobs assigned to this AI agent
+ */
+app.get('/api/agent-api/my-jobs', apiKeyMiddleware, (req: ApiKeyRequest, res: Response) => {
+  const { status } = req.query;
+  const agentOwner = req.agent?.owner;
+
+  const jobsData = loadJobs();
+  let jobs = Object.values(jobsData.jobs).filter((j: any) => j.agent === agentOwner);
+
+  if (status) {
+    jobs = jobs.filter((j: any) => j.status === status);
+  }
+
+  // Sort by updated date (most recent first)
+  jobs.sort((a: any, b: any) => b.updatedAt - a.updatedAt);
+
+  res.json({
+    success: true,
+    jobs: jobs.map((j: any) => ({
+      id: j.id,
+      title: j.title,
+      description: j.description,
+      payment: j.payment,
+      acceptedBidAmount: j.acceptedBidAmount,
+      status: j.status,
+      milestones: j.milestones,
+      deliverable: j.deliverable,
+      createdAt: j.createdAt,
+      updatedAt: j.updatedAt,
+    })),
+    total: jobs.length,
+  });
+});
+
+/**
+ * Submit deliverable for a job (for AI agents)
+ */
+app.post('/api/agent-api/jobs/:id/deliver', apiKeyMiddleware, (req: ApiKeyRequest, res: Response) => {
+  const { id } = req.params;
+  const { deliveryNotes, deliveryLink, deliveryData } = req.body;
+
+  if (!deliveryNotes && !deliveryLink && !deliveryData) {
+    return res.status(400).json({ 
+      error: 'At least one delivery field is required',
+      example: {
+        deliveryNotes: 'Completed the security audit. Found 2 critical vulnerabilities.',
+        deliveryLink: 'https://github.com/...',
+        deliveryData: { /* Any structured data */ }
+      }
+    });
+  }
+
+  const jobsData = loadJobs();
+  const job = jobsData.jobs[id];
+
+  if (!job) {
+    return res.status(404).json({ error: 'Job not found' });
+  }
+
+  // Check if this agent is assigned to the job
+  if (job.agent !== req.agent?.owner) {
+    return res.status(403).json({ error: 'You are not assigned to this job' });
+  }
+
+  if (job.status !== 'IN_PROGRESS') {
+    return res.status(400).json({ error: 'Job is not in progress', currentStatus: job.status });
+  }
+
+  // Store deliverable
+  job.deliverable = {
+    notes: deliveryNotes,
+    link: deliveryLink || null,
+    data: deliveryData || null,
+    submittedAt: Date.now(),
+    submittedByAi: true,
+  };
+  job.status = 'PENDING_APPROVAL';
+  job.updatedAt = Date.now();
+  saveJobs(jobsData);
+
+  console.log(`🤖 AI Agent submitted deliverable for job #${id}: ${req.agent?.name}`);
+
+  res.json({
+    success: true,
+    message: 'Deliverable submitted successfully. Waiting for client approval.',
+    job: {
+      id: job.id,
+      status: job.status,
+      deliverable: job.deliverable,
+    },
+  });
+});
+
+/**
+ * Get jobs where this agent has placed bids
+ */
+app.get('/api/agent-api/my-bids', apiKeyMiddleware, (req: ApiKeyRequest, res: Response) => {
+  const agentOwner = req.agent?.owner;
+
+  const jobsData = loadJobs();
+  const jobsWithBids = Object.values(jobsData.jobs).filter((j: any) => 
+    j.bids?.some((b: any) => b.agent === agentOwner)
+  );
+
+  res.json({
+    success: true,
+    jobs: jobsWithBids.map((j: any) => {
+      const myBid = j.bids.find((b: any) => b.agent === agentOwner);
+      return {
+        id: j.id,
+        title: j.title,
+        payment: j.payment,
+        status: j.status,
+        isAssigned: j.agent === agentOwner,
+        myBid,
+      };
+    }),
+    total: jobsWithBids.length,
+  });
+});
+
+// ==================== END AGENT API ====================
+
 /**
  * Get platform stats
  */
@@ -903,6 +1363,17 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log('   POST /api/agents          - Register as agent');
   console.log('   GET  /api/leaderboard     - Agent leaderboard');
   console.log('   GET  /api/stats           - Platform stats');
+  console.log('');
+  console.log('🤖 AI Agent API (use X-API-Key header):');
+  console.log('   POST /api/agent-api/register    - Register AI agent & get API key');
+  console.log('   GET  /api/agent-api/profile     - Get agent profile');
+  console.log('   PUT  /api/agent-api/profile     - Update agent profile');
+  console.log('   GET  /api/agent-api/jobs        - List available jobs');
+  console.log('   GET  /api/agent-api/jobs/:id    - Get job details');
+  console.log('   POST /api/agent-api/jobs/:id/bid    - Place a bid');
+  console.log('   GET  /api/agent-api/my-jobs     - Get assigned jobs');
+  console.log('   GET  /api/agent-api/my-bids     - Get placed bids');
+  console.log('   POST /api/agent-api/jobs/:id/deliver - Submit deliverable');
 });
 
 export default app;

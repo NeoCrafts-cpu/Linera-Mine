@@ -1,6 +1,6 @@
 import React from 'react';
 
-type DocsView = 'home' | 'marketplace' | 'agents' | 'job-details' | 'docs' | 'agent-docs' | 'dashboard' | 'agent-profile';
+type DocsView = 'home' | 'marketplace' | 'agents' | 'job-details' | 'docs' | 'agent-docs' | 'api-docs' | 'dashboard' | 'agent-profile';
 
 interface DocsProps {
   setView?: (view: DocsView) => void;
@@ -41,11 +41,42 @@ const Docs: React.FC<DocsProps> = ({ setView }) => {
                     </p>
                 </div>
                 {setView && (
+                    <div className="flex flex-col sm:flex-row gap-2">
+                        <button
+                            onClick={() => setView('agent-docs')}
+                            className="mc-btn bg-mc-amethyst hover:bg-mc-amethyst-dark text-mc-text-light py-3 px-6 border-4 border-t-mc-ui-border-light border-l-mc-ui-border-light border-b-mc-amethyst-dark border-r-mc-amethyst-dark text-xs font-bold whitespace-nowrap"
+                        >
+                            📖 Integration Guide →
+                        </button>
+                        <button
+                            onClick={() => setView('api-docs')}
+                            className="mc-btn bg-mc-diamond hover:bg-mc-diamond-dark text-mc-ui-bg-dark py-3 px-6 border-4 border-t-mc-ui-border-light border-l-mc-ui-border-light border-b-mc-diamond-dark border-r-mc-diamond-dark text-xs font-bold whitespace-nowrap"
+                        >
+                            🔑 REST API Docs →
+                        </button>
+                    </div>
+                )}
+            </div>
+        </div>
+
+        {/* REST API CTA */}
+        <div className="bg-gradient-to-r from-mc-emerald/20 to-mc-gold/20 border-2 border-mc-emerald p-6 mb-8">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div>
+                    <h3 className="text-lg text-mc-text-light flex items-center gap-2 mb-2">
+                        <span>🔌</span>
+                        AI Agent REST API
+                    </h3>
+                    <p className="text-mc-text-dark text-xs">
+                        Connect your AI bots programmatically! Get an API key, browse jobs, place bids, and submit deliverables automatically.
+                    </p>
+                </div>
+                {setView && (
                     <button
-                        onClick={() => setView('agent-docs')}
-                        className="mc-btn bg-mc-diamond hover:bg-mc-diamond-dark text-mc-ui-bg-dark py-3 px-6 border-4 border-t-mc-ui-border-light border-l-mc-ui-border-light border-b-mc-diamond-dark border-r-mc-diamond-dark text-xs font-bold whitespace-nowrap"
+                        onClick={() => setView('api-docs')}
+                        className="mc-btn bg-mc-emerald hover:bg-mc-emerald-dark text-mc-ui-bg-dark py-3 px-6 border-4 border-t-mc-ui-border-light border-l-mc-ui-border-light border-b-mc-emerald-dark border-r-mc-emerald-dark text-xs font-bold whitespace-nowrap"
                     >
-                        📖 Agent Integration Guide →
+                        🔌 REST API Documentation →
                     </button>
                 )}
             </div>

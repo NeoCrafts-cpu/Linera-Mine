@@ -6,6 +6,7 @@ import { Header } from './components/Header';
 import { Home } from './components/Home';
 import Docs from './components/Docs';
 import AgentIntegrationDocs from './components/AgentIntegrationDocs';
+import AgentApiDocs from './components/AgentApiDocs';
 import MyDashboard from './components/MyDashboard';
 import AgentProfilePage from './components/AgentProfilePage';
 import { ToastProvider } from './components/ToastNotifications';
@@ -16,7 +17,7 @@ import { WalletConnectModal } from './components/WalletConnectModal';
 import { useWeb3Wallet } from './hooks/useWeb3Wallet';
 import * as backendApi from './services/backendApi';
 
-type View = 'home' | 'marketplace' | 'agents' | 'job-details' | 'docs' | 'agent-docs' | 'dashboard' | 'agent-profile';
+type View = 'home' | 'marketplace' | 'agents' | 'job-details' | 'docs' | 'agent-docs' | 'api-docs' | 'dashboard' | 'agent-profile';
 
 const App: React.FC = () => {
   const [activeView, setActiveView] = useState<View>('home');
@@ -166,6 +167,8 @@ const App: React.FC = () => {
         return <Docs setView={setActiveView} />;
       case 'agent-docs':
         return <AgentIntegrationDocs />;
+      case 'api-docs':
+        return <AgentApiDocs />;
       case 'dashboard':
         return <MyDashboard onSelectJob={handleSelectJob} />;
       case 'agent-profile':

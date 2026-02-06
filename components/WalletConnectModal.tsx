@@ -1,13 +1,30 @@
 /**
  * Wallet Connect Modal
  * 
- * A modal for connecting MetaMask wallet - similar to Linera-Dominion.
- * Supports both new connections and restoring existing sessions.
+ * A modal for connecting wallets - supports both MetaMask and Dynamic SDK.
+ * Dynamic provides social logins and embedded wallets for better UX.
  */
 
 import React, { useState, useEffect } from 'react';
 import { useWeb3Wallet, isMetaMaskInstalled } from '../hooks/useWeb3Wallet';
 import * as backendApi from '../services/backendApi';
+
+// Check if Dynamic is enabled
+const DYNAMIC_ENABLED = !!import.meta.env.VITE_DYNAMIC_ENVIRONMENT_ID;
+
+// Try to import Dynamic SDK components
+let DynamicWidget: React.ComponentType<any> | null = null;
+let useDynamicContext: (() => any) | null = null;
+
+if (DYNAMIC_ENABLED) {
+  try {
+    const dynamicSdk = require('@dynamic-labs/sdk-react-core');
+    DynamicWidget = dynamicSdk.DynamicWidget;
+    useDynamicContext = dynamicSdk.useDynamicContext;
+  } catch (e) {
+    console.warn('Dynamic SDK not available');
+  }
+}
 
 interface WalletConnectModalProps {
   isOpen: boolean;
@@ -30,12 +47,18 @@ export const WalletConnectModal: React.FC<WalletConnectModalProps> = ({
 
   const [error, setError] = useState<string | null>(null);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
+  const [connectMethod, setConnectMethod] = useState<'metamask' | 'dynamic' | null>(null);
   const hasMetaMask = isMetaMaskInstalled();
+
+  // Get Dynamic context if available
+  const dynamicContext = DYNAMIC_ENABLED && useDynamicContext ? useDynamicContext() : null;
+  const dynamicAddress = dynamicContext?.primaryWallet?.address;
 
   // Reset error when modal opens
   useEffect(() => {
     if (isOpen) {
       setError(null);
+      setConnectMethod(null);
     }
   }, [isOpen]);
 
@@ -49,6 +72,13 @@ export const WalletConnectModal: React.FC<WalletConnectModalProps> = ({
       }
     }
   }, [isOpen, checkStoredSession]);
+
+  // Handle Dynamic wallet connection
+  useEffect(() => {
+    if (isOpen && dynamicAddress && connectMethod === 'dynamic') {
+      handleBackendAuth(dynamicAddress);
+    }
+  }, [dynamicAddress, isOpen, connectMethod]);
 
   const handleBackendAuth = async (walletAddress: string) => {
     setIsAuthenticating(true);
@@ -80,6 +110,7 @@ export const WalletConnectModal: React.FC<WalletConnectModalProps> = ({
     }
 
     setError(null);
+    setConnectMethod('metamask');
     
     try {
       const result = await connectAndSign();
@@ -91,6 +122,13 @@ export const WalletConnectModal: React.FC<WalletConnectModalProps> = ({
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to connect wallet';
       setError(message);
+    }
+  };
+
+  const handleDynamicConnect = () => {
+    setConnectMethod('dynamic');
+    if (dynamicContext?.setShowAuthFlow) {
+      dynamicContext.setShowAuthFlow(true);
     }
   };
 
@@ -110,25 +148,15 @@ export const WalletConnectModal: React.FC<WalletConnectModalProps> = ({
       >
         {/* Header */}
         <div className="text-center mb-6">
-          <div className="text-6xl mb-4">🦊</div>
+          <div className="text-6xl mb-4">⛓️</div>
           <h2 className="text-xl font-bold text-mc-text-light mb-2">
-            Connect MetaMask
+            Connect Wallet
           </h2>
           <p className="text-mc-text-dark text-sm">
-            Connect your MetaMask wallet to access Linera Mine.
+            Connect your wallet to access Linera Mine.
             Your progress will be saved and synced across devices!
           </p>
         </div>
-
-        {/* MetaMask not installed */}
-        {!hasMetaMask && (
-          <div className="mb-4 p-3 bg-mc-redstone/10 border-2 border-mc-redstone/30">
-            <p className="text-mc-redstone font-medium mb-2 text-sm">⚠️ MetaMask Not Detected</p>
-            <p className="text-mc-text-dark text-xs">
-              MetaMask browser extension is required to use Linera Mine.
-            </p>
-          </div>
-        )}
 
         {/* Error message */}
         {displayError && (
@@ -138,52 +166,109 @@ export const WalletConnectModal: React.FC<WalletConnectModalProps> = ({
         )}
 
         {/* Already connected address */}
-        {address && (
+        {(address || dynamicAddress) && (
           <div className="mb-4 p-3 bg-mc-emerald/10 border-2 border-mc-emerald/30">
             <p className="text-mc-emerald text-sm">
-              ✅ Connected: {`${address.slice(0, 6)}...${address.slice(-4)}`}
+              ✅ Connected: {`${(address || dynamicAddress || '').slice(0, 6)}...${(address || dynamicAddress || '').slice(-4)}`}
             </p>
           </div>
         )}
 
-        {/* Buttons */}
-        <div className="flex gap-3">
-          <button
-            className="flex-1 mc-btn py-3 px-4 bg-mc-stone hover:bg-mc-stone-dark text-mc-text-light border-4 border-t-mc-ui-border-light border-l-mc-ui-border-light border-b-mc-ui-border-dark border-r-mc-ui-border-dark text-sm"
-            onClick={onClose}
-          >
-            Cancel
-          </button>
-          
-          <button
-            className={`flex-1 mc-btn py-3 px-4 text-sm border-4 ${
-              isLoading
-                ? 'bg-mc-stone cursor-not-allowed text-mc-text-dark'
-                : hasMetaMask
-                  ? 'bg-mc-diamond hover:bg-mc-diamond-dark text-mc-ui-bg-dark border-t-mc-ui-border-light border-l-mc-ui-border-light border-b-mc-diamond-dark border-r-mc-diamond-dark'
-                  : 'bg-mc-gold hover:bg-mc-gold-dark text-mc-ui-bg-dark border-t-mc-ui-border-light border-l-mc-ui-border-light border-b-mc-gold-dark border-r-mc-gold-dark'
-            }`}
-            onClick={handleConnect}
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <span className="flex items-center justify-center gap-2">
-                <span className="animate-spin">⏳</span>
-                {isAuthenticating ? 'Authenticating...' : 'Connecting...'}
-              </span>
-            ) : hasMetaMask ? (
-              'Connect'
-            ) : (
-              'Install MetaMask'
+        {/* Wallet Options */}
+        <div className="space-y-3 mb-4">
+          {/* Dynamic Wallet Option (if enabled) */}
+          {DYNAMIC_ENABLED && DynamicWidget && (
+            <div className="p-4 bg-mc-ui-bg-dark border-2 border-mc-diamond/50 rounded-sm">
+              <div className="flex items-center gap-3 mb-3">
+                <span className="text-2xl">✨</span>
+                <div>
+                  <h3 className="text-mc-text-light text-sm font-bold">Dynamic Wallet</h3>
+                  <p className="text-mc-text-dark text-xs">Social login, email, or any wallet</p>
+                </div>
+              </div>
+              <button
+                className="w-full mc-btn py-3 px-4 bg-mc-diamond hover:bg-mc-diamond-dark text-mc-ui-bg-dark border-4 border-t-mc-ui-border-light border-l-mc-ui-border-light border-b-mc-diamond-dark border-r-mc-diamond-dark text-sm font-bold"
+                onClick={handleDynamicConnect}
+                disabled={isLoading}
+              >
+                {isLoading && connectMethod === 'dynamic' ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <span className="animate-spin">⏳</span>
+                    Connecting...
+                  </span>
+                ) : (
+                  '🔐 Connect with Dynamic'
+                )}
+              </button>
+              <p className="text-mc-text-dark text-[10px] mt-2 text-center">
+                Google, Discord, Twitter, Email, or 300+ wallets
+              </p>
+            </div>
+          )}
+
+          {/* Divider (if Dynamic is enabled) */}
+          {DYNAMIC_ENABLED && DynamicWidget && (
+            <div className="flex items-center gap-4">
+              <div className="flex-1 h-px bg-mc-ui-border-dark"></div>
+              <span className="text-mc-text-dark text-xs">or</span>
+              <div className="flex-1 h-px bg-mc-ui-border-dark"></div>
+            </div>
+          )}
+
+          {/* MetaMask Option */}
+          <div className="p-4 bg-mc-ui-bg-dark border-2 border-mc-gold/50 rounded-sm">
+            <div className="flex items-center gap-3 mb-3">
+              <span className="text-2xl">🦊</span>
+              <div>
+                <h3 className="text-mc-text-light text-sm font-bold">MetaMask</h3>
+                <p className="text-mc-text-dark text-xs">Connect with browser extension</p>
+              </div>
+            </div>
+            
+            {!hasMetaMask && (
+              <div className="mb-3 p-2 bg-mc-redstone/10 border border-mc-redstone/30 rounded-sm">
+                <p className="text-mc-redstone text-xs">⚠️ MetaMask not detected</p>
+              </div>
             )}
-          </button>
+            
+            <button
+              className={`w-full mc-btn py-3 px-4 text-sm border-4 ${
+                isLoading && connectMethod === 'metamask'
+                  ? 'bg-mc-stone cursor-not-allowed text-mc-text-dark'
+                  : hasMetaMask
+                    ? 'bg-mc-gold hover:bg-mc-gold-dark text-mc-ui-bg-dark border-t-mc-ui-border-light border-l-mc-ui-border-light border-b-mc-gold-dark border-r-mc-gold-dark'
+                    : 'bg-mc-stone hover:bg-mc-stone-dark text-mc-text-light border-t-mc-ui-border-light border-l-mc-ui-border-light border-b-mc-ui-border-dark border-r-mc-ui-border-dark'
+              }`}
+              onClick={handleConnect}
+              disabled={isLoading && connectMethod === 'metamask'}
+            >
+              {isLoading && connectMethod === 'metamask' ? (
+                <span className="flex items-center justify-center gap-2">
+                  <span className="animate-spin">⏳</span>
+                  {isAuthenticating ? 'Authenticating...' : 'Connecting...'}
+                </span>
+              ) : hasMetaMask ? (
+                '🦊 Connect MetaMask'
+              ) : (
+                '📥 Install MetaMask'
+              )}
+            </button>
+          </div>
         </div>
+
+        {/* Cancel button */}
+        <button
+          className="w-full mc-btn py-3 px-4 bg-mc-stone hover:bg-mc-stone-dark text-mc-text-light border-4 border-t-mc-ui-border-light border-l-mc-ui-border-light border-b-mc-ui-border-dark border-r-mc-ui-border-dark text-sm"
+          onClick={onClose}
+        >
+          Cancel
+        </button>
 
         {/* Info text */}
         <p className="text-mc-text-dark text-xs text-center mt-4">
-          {hasMetaMask 
-            ? 'You will be asked to sign a message. This is free and does not cost any gas.'
-            : 'After installing MetaMask, refresh this page and click Connect.'
+          {DYNAMIC_ENABLED 
+            ? 'Choose your preferred login method. All options are secure and free.'
+            : 'You will be asked to sign a message. This is free and does not cost any gas.'
           }
         </p>
       </div>

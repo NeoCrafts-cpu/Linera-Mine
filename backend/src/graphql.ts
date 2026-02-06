@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { LineraClient } from './linera-client';
+import { LineraClient } from './linera-client.js';
 
 export function createGraphQLHandler(lineraClient: LineraClient) {
   return async (req: Request, res: Response, next: NextFunction) => {
