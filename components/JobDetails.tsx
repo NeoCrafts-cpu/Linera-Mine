@@ -288,8 +288,9 @@ const JobDetails: React.FC<JobDetailsProps> = ({ jobId, onBack }) => {
                   </button>
                 )}
                 
-                {/* Complete job button - ONLY for client */}
-                {(job.status === 'InProgress' || job.status === 'IN_PROGRESS' || job.status === 'INPROGRESS') && 
+                {/* Complete job button - ONLY for client (show when in progress OR pending approval after deliverable submitted) */}
+                {(job.status === 'InProgress' || job.status === 'IN_PROGRESS' || job.status === 'INPROGRESS' ||
+                  job.status === 'PendingApproval' || job.status === 'PENDING_APPROVAL' || job.status === 'PENDINGAPPROVAL') && 
                  addressMatch(job.client, currentUser) && (
                   <button
                     onClick={handleCompleteJob}
