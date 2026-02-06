@@ -217,6 +217,8 @@ export interface BidData {
 
 /**
  * Get all jobs with optional filters
+ * @param filters - Filter options
+ * @param userAddress - If provided, filters to seed jobs + user's jobs
  */
 export async function getJobs(filters?: {
   status?: JobStatus;
@@ -224,6 +226,7 @@ export async function getJobs(filters?: {
   minPayment?: number;
   maxPayment?: number;
   limit?: number;
+  userAddress?: string;
 }): Promise<JobsListResponse> {
   const params = new URLSearchParams();
   if (filters?.status) params.append('status', filters.status);
@@ -231,9 +234,44 @@ export async function getJobs(filters?: {
   if (filters?.minPayment) params.append('minPayment', filters.minPayment.toString());
   if (filters?.maxPayment) params.append('maxPayment', filters.maxPayment.toString());
   if (filters?.limit) params.append('limit', filters.limit.toString());
+  if (filters?.userAddress) params.append('userAddress', filters.userAddress);
 
   const query = params.toString();
   return apiRequest<JobsListResponse>(`/api/jobs${query ? `?${query}` : ''}`);
+}
+
+// =============================================================================
+// USER-SPECIFIC API
+// =============================================================================
+
+export interface UserJobsResponse {
+  postedJobs: Job[];
+  agentJobs: Job[];
+  bidJobs: Job[];
+  totals: {
+    posted: number;
+    working: number;
+    bids: number;
+  };
+}
+
+export interface UserAgentResponse {
+  agent: AgentProfile | null;
+  isRegistered: boolean;
+}
+
+/**
+ * Get all jobs for a specific user (their posted jobs + jobs they're working on + bids)
+ */
+export async function getUserJobs(address: string): Promise<UserJobsResponse> {
+  return apiRequest<UserJobsResponse>(`/api/user/${address.toLowerCase()}/jobs`);
+}
+
+/**
+ * Get user's registered agent profile
+ */
+export async function getUserAgent(address: string): Promise<UserAgentResponse> {
+  return apiRequest<UserAgentResponse>(`/api/user/${address.toLowerCase()}/agent`);
 }
 
 /**
@@ -351,16 +389,19 @@ export interface AgentResponse {
 
 /**
  * Get all agents with optional filters
+ * @param filters - Filter options including userAddress for user-specific view
  */
 export async function getAgents(filters?: {
   skill?: string;
   minRating?: number;
   verified?: boolean;
+  userAddress?: string;
 }): Promise<AgentsListResponse> {
   const params = new URLSearchParams();
   if (filters?.skill) params.append('skill', filters.skill);
   if (filters?.minRating) params.append('minRating', filters.minRating.toString());
   if (filters?.verified !== undefined) params.append('verified', filters.verified.toString());
+  if (filters?.userAddress) params.append('userAddress', filters.userAddress);
 
   const query = params.toString();
   return apiRequest<AgentsListResponse>(`/api/agents${query ? `?${query}` : ''}`);

@@ -13,8 +13,11 @@ interface MyDashboardProps {
 type TabType = 'posted' | 'working' | 'bids' | 'completed';
 
 const MyDashboard: React.FC<MyDashboardProps> = ({ onSelectJob }) => {
-  const [jobs, setJobs] = useState<Job[]>([]);
-  const [agents, setAgents] = useState<AgentProfile[]>([]);
+  const [postedJobs, setPostedJobs] = useState<Job[]>([]);
+  const [workingJobs, setWorkingJobs] = useState<Job[]>([]);
+  const [biddedJobs, setBiddedJobs] = useState<Job[]>([]);
+  const [completedJobs, setCompletedJobs] = useState<Job[]>([]);
+  const [myAgentProfile, setMyAgentProfile] = useState<AgentProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabType>('posted');
   
@@ -30,63 +33,62 @@ const MyDashboard: React.FC<MyDashboardProps> = ({ onSelectJob }) => {
   };
 
   const fetchData = useCallback(async () => {
+    if (!currentUser) {
+      setLoading(false);
+      return;
+    }
+    
     try {
       setLoading(true);
       
-      // Always fetch from backend first (shared data source)
-      let jobsData: Job[] = [];
-      let agentsData: AgentProfile[] = [];
+      // Fetch user-specific data from backend using new endpoints
+      const [userJobsData, userAgentData] = await Promise.all([
+        backendApi.getUserJobs(currentUser),
+        backendApi.getUserAgent(currentUser),
+      ]);
       
-      try {
-        const backendJobs = await backendApi.getJobs();
-        jobsData = backendJobs.jobs || [];
-        
-        const backendAgents = await backendApi.getAgents();
-        agentsData = backendAgents.agents as AgentProfile[] || [];
-        
-        console.log('✅ Fetched from backend - Jobs:', jobsData.length, 'Agents:', agentsData.length);
-      } catch (backendErr) {
-        console.warn('Backend fetch failed, falling back:', backendErr);
-        // Fallback to blockchain/local
-        [jobsData, agentsData] = await Promise.all([
-          isLineraEnabled() ? getJobsFromChain() : getJobs(),
-          isLineraEnabled() ? getAgentsFromChain() : getAgents(),
-        ]);
-      }
+      console.log('✅ Fetched user data:', {
+        posted: userJobsData.postedJobs.length,
+        working: userJobsData.agentJobs.length,
+        bids: userJobsData.bidJobs.length,
+        agent: userAgentData.isRegistered,
+      });
+
+      // Separate jobs by status
+      const posted = userJobsData.postedJobs || [];
+      const working = (userJobsData.agentJobs || []).filter(j => {
+        const statusUpper = String(j.status).toUpperCase();
+        return statusUpper === 'INPROGRESS' || statusUpper === 'IN_PROGRESS';
+      });
+      const bidded = userJobsData.bidJobs || [];
       
-      setJobs(jobsData);
-      setAgents(agentsData);
+      // Completed jobs are from both posted and agent jobs
+      const completed = [
+        ...posted.filter(j => String(j.status).toUpperCase() === 'COMPLETED'),
+        ...(userJobsData.agentJobs || []).filter(j => String(j.status).toUpperCase() === 'COMPLETED'),
+      ];
+
+      setPostedJobs(posted);
+      setWorkingJobs(working);
+      setBiddedJobs(bidded);
+      setCompletedJobs(completed);
+      setMyAgentProfile(userAgentData.agent);
+      
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error);
+      // Reset state on error
+      setPostedJobs([]);
+      setWorkingJobs([]);
+      setBiddedJobs([]);
+      setCompletedJobs([]);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [currentUser]);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
-
-  // Filter jobs by category - use case-insensitive address matching
-  const myPostedJobs = jobs.filter(j => addressMatch(j.client, currentUser));
-  const myWorkingJobs = jobs.filter(j => {
-    const statusUpper = String(j.status).toUpperCase();
-    return addressMatch(j.agent, currentUser) && (statusUpper === 'INPROGRESS' || statusUpper === 'IN_PROGRESS');
-  });
-  const myBiddedJobs = jobs.filter(j => 
-    j.bids.some(bid => {
-      const bidAgent = typeof bid.agent === 'string' ? bid.agent : bid.agent?.owner;
-      return addressMatch(bidAgent, currentUser);
-    })
-  );
-  const myCompletedJobs = jobs.filter(j => {
-    const statusUpper = String(j.status).toUpperCase();
-    return (addressMatch(j.client, currentUser) || addressMatch(j.agent, currentUser)) && 
-           statusUpper === 'COMPLETED';
-  });
-
-  // Get current user's agent profile
-  const myAgentProfile = agents.find(a => addressMatch(a.owner, currentUser));
 
   // Stats - ensure payment is parsed as number
   const parsePayment = (payment: any): number => {
@@ -94,10 +96,10 @@ const MyDashboard: React.FC<MyDashboardProps> = ({ onSelectJob }) => {
     return payment || 0;
   };
   
-  const totalEarnings = myCompletedJobs
+  const totalEarnings = completedJobs
     .filter(j => addressMatch(j.agent, currentUser))
     .reduce((sum, j) => sum + parsePayment(j.payment), 0);
-  const totalSpent = myCompletedJobs
+  const totalSpent = completedJobs
     .filter(j => addressMatch(j.client, currentUser))
     .reduce((sum, j) => sum + parsePayment(j.payment), 0);
 
@@ -122,10 +124,10 @@ const MyDashboard: React.FC<MyDashboardProps> = ({ onSelectJob }) => {
 
   const getActiveJobs = () => {
     switch (activeTab) {
-      case 'posted': return myPostedJobs;
-      case 'working': return myWorkingJobs;
-      case 'bids': return myBiddedJobs;
-      case 'completed': return myCompletedJobs;
+      case 'posted': return postedJobs;
+      case 'working': return workingJobs;
+      case 'bids': return biddedJobs;
+      case 'completed': return completedJobs;
       default: return [];
     }
   };
@@ -180,11 +182,11 @@ const MyDashboard: React.FC<MyDashboardProps> = ({ onSelectJob }) => {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
         <div className="bg-mc-ui-bg-dark border-4 border-mc-stone p-4">
           <div className="text-mc-text-dark text-[8px] uppercase mb-1">Posted Jobs</div>
-          <div className="text-mc-gold text-2xl font-bold">{myPostedJobs.length}</div>
+          <div className="text-mc-gold text-2xl font-bold">{postedJobs.length}</div>
         </div>
         <div className="bg-mc-ui-bg-dark border-4 border-mc-stone p-4">
           <div className="text-mc-text-dark text-[8px] uppercase mb-1">Active Work</div>
-          <div className="text-mc-diamond text-2xl font-bold">{myWorkingJobs.length}</div>
+          <div className="text-mc-diamond text-2xl font-bold">{workingJobs.length}</div>
         </div>
         <div className="bg-mc-ui-bg-dark border-4 border-mc-stone p-4">
           <div className="text-mc-text-dark text-[8px] uppercase mb-1">Total Earned</div>
@@ -231,10 +233,10 @@ const MyDashboard: React.FC<MyDashboardProps> = ({ onSelectJob }) => {
       {/* Tabs */}
       <div className="bg-mc-ui-bg-dark border-4 border-mc-stone">
         <div className="flex border-b-2 border-mc-stone overflow-x-auto">
-          <TabButton tab="posted" label="My Posted Jobs" count={myPostedJobs.length} icon="📝" />
-          <TabButton tab="working" label="Active Work" count={myWorkingJobs.length} icon="⚡" />
-          <TabButton tab="bids" label="My Bids" count={myBiddedJobs.length} icon="💬" />
-          <TabButton tab="completed" label="Completed" count={myCompletedJobs.length} icon="✅" />
+          <TabButton tab="posted" label="My Posted Jobs" count={postedJobs.length} icon="📝" />
+          <TabButton tab="working" label="Active Work" count={workingJobs.length} icon="⚡" />
+          <TabButton tab="bids" label="My Bids" count={biddedJobs.length} icon="💬" />
+          <TabButton tab="completed" label="Completed" count={completedJobs.length} icon="✅" />
         </div>
 
         {/* Tab Content */}

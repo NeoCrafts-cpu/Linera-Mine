@@ -58,10 +58,179 @@ function initDataFile(filePath: string, defaultData: any) {
 }
 
 initDataFile(USERS_FILE, { users: {} });
-initDataFile(JOBS_FILE, { jobs: {}, jobCounter: 1 });
+initDataFile(JOBS_FILE, { jobs: {}, jobCounter: 100 });
 initDataFile(AGENTS_FILE, { agents: {} });
 initDataFile(SESSIONS_FILE, { sessions: {} });
 initDataFile(API_KEYS_FILE, { apiKeys: {} });
+
+// ==================== SEED DATA ====================
+
+const SEED_JOBS = [
+  {
+    id: 1,
+    title: 'Build Smart Contract for NFT Marketplace',
+    description: 'Need an AI agent to develop a Linera smart contract for an NFT marketplace. Must include minting, listing, and trading functionality with proper escrow handling.',
+    payment: 500,
+    category: 'DEVELOPMENT',
+    tags: ['rust', 'smart-contract', 'nft', 'linera'],
+    client: 'platform',
+    agent: null,
+    status: 'POSTED',
+    bids: [],
+    milestones: [],
+    isSeed: true,
+  },
+  {
+    id: 2,
+    title: 'Security Audit for DeFi Protocol',
+    description: 'Comprehensive security audit of a decentralized lending protocol. AI agent should analyze the contract for vulnerabilities, reentrancy attacks, and economic exploits.',
+    payment: 750,
+    category: 'AUDIT',
+    tags: ['security', 'defi', 'audit', 'vulnerability'],
+    client: 'platform',
+    agent: null,
+    status: 'POSTED',
+    bids: [],
+    milestones: [],
+    isSeed: true,
+  },
+  {
+    id: 3,
+    title: 'AI Chatbot Integration for dApp',
+    description: 'Integrate an AI chatbot with our Linera dApp. The bot should answer user questions about their portfolio and execute simple transactions via natural language.',
+    payment: 350,
+    category: 'DEVELOPMENT',
+    tags: ['ai', 'chatbot', 'integration', 'nlp'],
+    client: 'platform',
+    agent: null,
+    status: 'POSTED',
+    bids: [],
+    milestones: [],
+    isSeed: true,
+  },
+  {
+    id: 4,
+    title: 'Trading Signal Analysis Pipeline',
+    description: 'Build a data pipeline to analyze on-chain data and generate trading signals. Should include backtesting capabilities and real-time alerts.',
+    payment: 600,
+    category: 'DATA_ANALYSIS',
+    tags: ['data', 'trading', 'analysis', 'signals'],
+    client: 'platform',
+    agent: null,
+    status: 'POSTED',
+    bids: [],
+    milestones: [],
+    isSeed: true,
+  },
+  {
+    id: 5,
+    title: 'Technical Documentation for SDK',
+    description: 'Write comprehensive documentation for our Linera SDK. Includes API reference, tutorials, and example code for common use cases.',
+    payment: 200,
+    category: 'WRITING',
+    tags: ['documentation', 'sdk', 'technical-writing'],
+    client: 'platform',
+    agent: null,
+    status: 'POSTED',
+    bids: [],
+    milestones: [],
+    isSeed: true,
+  },
+];
+
+const SEED_AGENTS = [
+  {
+    owner: 'agent-rust-master',
+    name: 'RustMaster AI',
+    serviceDescription: 'Expert Rust developer specializing in Linera smart contracts and blockchain infrastructure. Fast turnaround with comprehensive testing.',
+    skills: ['rust', 'smart-contracts', 'linera', 'blockchain', 'testing'],
+    hourlyRate: 75,
+    portfolioUrls: [],
+    jobsCompleted: 12,
+    rating: 4.8,
+    totalRatingPoints: 58,
+    totalRatings: 12,
+    totalEarned: 4500,
+    verified: true,
+    availability: true,
+    isAiAgent: true,
+    isSeed: true,
+  },
+  {
+    owner: 'agent-security-pro',
+    name: 'SecurityBot Pro',
+    serviceDescription: 'Automated security auditing service for smart contracts. Uses advanced static analysis and symbolic execution to find vulnerabilities.',
+    skills: ['security', 'audit', 'vulnerability-analysis', 'defi'],
+    hourlyRate: 100,
+    portfolioUrls: [],
+    jobsCompleted: 8,
+    rating: 5.0,
+    totalRatingPoints: 40,
+    totalRatings: 8,
+    totalEarned: 6000,
+    verified: true,
+    availability: true,
+    isAiAgent: true,
+    isSeed: true,
+  },
+  {
+    owner: 'agent-data-mind',
+    name: 'DataMind AI',
+    serviceDescription: 'Data science and machine learning solutions for blockchain analytics. Specializing in trading signals, fraud detection, and user behavior analysis.',
+    skills: ['python', 'machine-learning', 'data-analysis', 'trading'],
+    hourlyRate: 80,
+    portfolioUrls: [],
+    jobsCompleted: 15,
+    rating: 4.6,
+    totalRatingPoints: 69,
+    totalRatings: 15,
+    totalEarned: 5200,
+    verified: true,
+    availability: true,
+    isAiAgent: true,
+    isSeed: true,
+  },
+];
+
+// Initialize seed data on startup
+function initSeedData() {
+  const jobsData = loadJobs();
+  const agentsData = loadAgents();
+  let updated = false;
+
+  // Add seed jobs if they don't exist
+  for (const seedJob of SEED_JOBS) {
+    if (!jobsData.jobs[seedJob.id]) {
+      jobsData.jobs[seedJob.id] = {
+        ...seedJob,
+        createdAt: Date.now() - Math.random() * 86400000 * 7, // Random time in last 7 days
+        updatedAt: Date.now(),
+      };
+      updated = true;
+    }
+  }
+
+  // Add seed agents if they don't exist
+  for (const seedAgent of SEED_AGENTS) {
+    if (!agentsData.agents[seedAgent.owner]) {
+      agentsData.agents[seedAgent.owner] = {
+        ...seedAgent,
+        registeredAt: Date.now() - Math.random() * 86400000 * 30, // Random time in last 30 days
+        updatedAt: Date.now(),
+      };
+      updated = true;
+    }
+  }
+
+  if (updated) {
+    saveJobs(jobsData);
+    saveAgents(agentsData);
+    console.log('✅ Seed data initialized');
+  }
+}
+
+// Call on startup
+initSeedData();
 
 // ==================== DATA HELPERS ====================
 
@@ -437,12 +606,28 @@ app.put('/api/wallet', authMiddleware, (req: AuthRequest, res: Response) => {
 
 /**
  * Get all jobs
+ * - Marketplace view: returns all POSTED jobs (available for bidding) + seed jobs
+ * - User view (userAddress param): returns user's jobs + seed jobs only
  */
 app.get('/api/jobs', (req: Request, res: Response) => {
-  const { status, category, minPayment, maxPayment, limit = 100 } = req.query;
+  const { status, category, minPayment, maxPayment, limit = 100, userAddress } = req.query;
   
   const jobsData = loadJobs();
   let jobs = Object.values(jobsData.jobs);
+
+  // If userAddress provided, filter to show only:
+  // 1. Seed jobs (visible to all)
+  // 2. Jobs created by this user
+  // 3. Jobs assigned to this user (as agent)
+  // Otherwise, show all jobs (marketplace view)
+  if (userAddress) {
+    const userAddr = String(userAddress).toLowerCase();
+    jobs = jobs.filter((j: any) => 
+      j.isSeed || 
+      j.client?.toLowerCase() === userAddr ||
+      j.agent?.toLowerCase() === userAddr
+    );
+  }
 
   // Apply filters
   if (status) {
@@ -484,6 +669,44 @@ app.get('/api/jobs/:id', (req: Request, res: Response) => {
   }
 
   res.json({ job });
+});
+
+/**
+ * Get jobs for a specific user (their posted jobs + jobs they're working on)
+ */
+app.get('/api/user/:address/jobs', (req: Request, res: Response) => {
+  const { address } = req.params;
+  const userAddr = address.toLowerCase();
+  
+  const jobsData = loadJobs();
+  const allJobs = Object.values(jobsData.jobs);
+
+  // Get jobs where user is the client (posted jobs)
+  const postedJobs = allJobs.filter((j: any) => 
+    j.client?.toLowerCase() === userAddr && !j.isSeed
+  );
+
+  // Get jobs where user is the assigned agent (agent jobs)
+  const agentJobs = allJobs.filter((j: any) => 
+    j.agent?.toLowerCase() === userAddr
+  );
+
+  // Get jobs where user has placed bids
+  const bidJobs = allJobs.filter((j: any) => 
+    j.bids?.some((b: any) => b.agent?.toLowerCase() === userAddr) && 
+    j.agent?.toLowerCase() !== userAddr
+  );
+
+  res.json({
+    postedJobs: postedJobs.sort((a: any, b: any) => b.createdAt - a.createdAt),
+    agentJobs: agentJobs.sort((a: any, b: any) => b.updatedAt - a.updatedAt),
+    bidJobs: bidJobs.sort((a: any, b: any) => b.createdAt - a.createdAt),
+    totals: {
+      posted: postedJobs.length,
+      working: agentJobs.length,
+      bids: bidJobs.length,
+    },
+  });
 });
 
 /**
@@ -699,13 +922,21 @@ app.delete('/api/jobs/:id', (req: Request, res: Response) => {
 // ==================== AGENTS ROUTES ====================
 
 /**
- * Get all agents
+ * Get all agents (seed agents + user-registered agents)
  */
 app.get('/api/agents', (req: Request, res: Response) => {
-  const { skill, minRating, verified } = req.query;
+  const { skill, minRating, verified, userAddress } = req.query;
   
   const agentsData = loadAgents();
   let agents = Object.values(agentsData.agents);
+
+  // If userAddress is provided, show seed agents + user's own agent profile
+  if (userAddress) {
+    const userAddr = String(userAddress).toLowerCase();
+    agents = agents.filter((a: any) => 
+      a.isSeed || a.owner?.toLowerCase() === userAddr
+    );
+  }
 
   // Apply filters
   if (skill) {
@@ -728,6 +959,23 @@ app.get('/api/agents', (req: Request, res: Response) => {
     agents,
     total: agents.length,
   });
+});
+
+/**
+ * Get user's agent profile
+ */
+app.get('/api/user/:address/agent', (req: Request, res: Response) => {
+  const { address } = req.params;
+  const userAddr = address.toLowerCase();
+  
+  const agentsData = loadAgents();
+  const agent = agentsData.agents[userAddr];
+
+  if (!agent) {
+    return res.json({ agent: null, isRegistered: false });
+  }
+
+  res.json({ agent, isRegistered: true });
 });
 
 /**
