@@ -56,7 +56,10 @@ const JobDetails: React.FC<JobDetailsProps> = ({ jobId, onBack }) => {
   const [showBidModal, setShowBidModal] = useState<boolean>(false);
   const [showDeliverableModal, setShowDeliverableModal] = useState<boolean>(false);
 
-  const currentUser = getCurrentUserAddress();
+  // Get wallet address: check localStorage first (MetaMask/Dynamic), then fallback to Linera adapter
+  const currentUser = localStorage.getItem('linera_mine_web3_address') 
+    || localStorage.getItem('linera_user_address')
+    || getCurrentUserAddress();
 
   const fetchJobDetails = useCallback(async () => {
     try {
@@ -302,47 +305,56 @@ const JobDetails: React.FC<JobDetailsProps> = ({ jobId, onBack }) => {
           )}
 
           {/* Complete Job Button - Separate section for client when deliverable is pending approval */}
-          {job.agent && 
-           (job.status === 'PendingApproval' || job.status === 'PENDING_APPROVAL' || job.status === 'PENDINGAPPROVAL' ||
-            job.status === 'InProgress' || job.status === 'IN_PROGRESS' || job.status === 'INPROGRESS') && 
-           addressMatch(job.client, currentUser) && (
-            <div className="bg-mc-gold/10 border-2 border-mc-gold p-4 mt-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-mc-gold text-[10px] uppercase font-bold">
-                    {(job.status === 'PendingApproval' || job.status === 'PENDING_APPROVAL' || job.status === 'PENDINGAPPROVAL') 
-                      ? '📦 Deliverable Submitted - Review & Approve' 
-                      : '⏳ Job In Progress'}
+          {(() => {
+            if (!job.agent) return null;
+            const status = String(job.status || '').replace(/_/g, '').replace(/\s+/g, '').toLowerCase();
+            const isPendingApproval = status === 'pendingapproval';
+            const isInProgress = status === 'inprogress';
+            const walletAddr = localStorage.getItem('linera_mine_web3_address') 
+              || localStorage.getItem('linera_user_address')
+              || currentUser;
+            const isClient = addressMatch(job.client, walletAddr);
+            console.log('[JobDetails] Complete button check:', { client: job.client, wallet: walletAddr, status: job.status, normalizedStatus: status, isClient, isPendingApproval, isInProgress });
+            if (!isClient || (!isPendingApproval && !isInProgress)) return null;
+            return (
+              <div className="bg-mc-gold/10 border-2 border-mc-gold p-4 mt-4">
+                <div className="flex items-center justify-between flex-wrap gap-4">
+                  <div>
+                    <div className="text-mc-gold text-[10px] uppercase font-bold">
+                      {isPendingApproval
+                        ? '📦 Deliverable Submitted - Review & Approve'
+                        : '⏳ Job In Progress'}
+                    </div>
+                    <div className="text-mc-text-dark text-xs mt-1">
+                      {isPendingApproval
+                        ? 'The agent has submitted their work. Review and complete the job to release payment.'
+                        : 'Waiting for the agent to submit their deliverable.'}
+                    </div>
                   </div>
-                  <div className="text-mc-text-dark text-xs mt-1">
-                    {(job.status === 'PendingApproval' || job.status === 'PENDING_APPROVAL' || job.status === 'PENDINGAPPROVAL')
-                      ? 'The agent has submitted their work. Review and complete the job to release payment.'
-                      : 'Waiting for the agent to submit their deliverable.'}
-                  </div>
+                  <button
+                    onClick={handleCompleteJob}
+                    disabled={isCompleting}
+                    className="bg-mc-emerald text-white font-bold py-3 px-6 border-4 border-t-mc-ui-border-light border-l-mc-ui-border-light border-b-mc-emerald-dark border-r-mc-emerald-dark text-xs uppercase tracking-wider disabled:bg-mc-stone disabled:cursor-wait hover:brightness-110 transition-all flex items-center gap-2"
+                  >
+                    {isCompleting ? (
+                      <>
+                        <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Completing...
+                      </>
+                    ) : (
+                      <>
+                        <span>✓</span>
+                        Complete Job & Release Payment
+                      </>
+                    )}
+                  </button>
                 </div>
-                <button
-                  onClick={handleCompleteJob}
-                  disabled={isCompleting}
-                  className="bg-mc-emerald text-white font-bold py-3 px-6 border-4 border-t-mc-ui-border-light border-l-mc-ui-border-light border-b-mc-emerald-dark border-r-mc-emerald-dark text-xs uppercase tracking-wider disabled:bg-mc-stone disabled:cursor-wait hover:brightness-110 transition-all flex items-center gap-2"
-                >
-                  {isCompleting ? (
-                    <>
-                      <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      Completing...
-                    </>
-                  ) : (
-                    <>
-                      <span>✓</span>
-                      Complete Job & Release Payment
-                    </>
-                  )}
-                </button>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* Place Bid Section - Show for Posted jobs */}
           {(job.status === 'Posted' || job.status === 'POSTED' || job.status === 'Open') && (
