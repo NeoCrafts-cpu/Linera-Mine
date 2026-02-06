@@ -8,14 +8,10 @@
 import React, { useState, useEffect } from 'react';
 import { useWeb3Wallet, isMetaMaskInstalled } from '../hooks/useWeb3Wallet';
 import * as backendApi from '../services/backendApi';
+import { DynamicWidget, useDynamicContext } from '@dynamic-labs/sdk-react-core';
 
 // Check if Dynamic is enabled via environment variable
 const DYNAMIC_ENABLED = !!import.meta.env.VITE_DYNAMIC_ENVIRONMENT_ID;
-
-// Dynamic SDK will be loaded dynamically to avoid build errors when not installed
-// For now, we'll show a placeholder for Dynamic until packages are installed
-const DynamicWidget: React.ComponentType<any> | null = null;
-const useDynamicContext: (() => any) | null = null;
 
 interface WalletConnectModalProps {
   isOpen: boolean;
@@ -41,8 +37,8 @@ export const WalletConnectModal: React.FC<WalletConnectModalProps> = ({
   const [connectMethod, setConnectMethod] = useState<'metamask' | 'dynamic' | null>(null);
   const hasMetaMask = isMetaMaskInstalled();
 
-  // Get Dynamic context if available
-  const dynamicContext = DYNAMIC_ENABLED && useDynamicContext ? useDynamicContext() : null;
+  // Get Dynamic context if enabled
+  const dynamicContext = DYNAMIC_ENABLED ? useDynamicContext() : null;
   const dynamicAddress = dynamicContext?.primaryWallet?.address;
 
   // Reset error when modal opens
@@ -168,7 +164,7 @@ export const WalletConnectModal: React.FC<WalletConnectModalProps> = ({
         {/* Wallet Options */}
         <div className="space-y-3 mb-4">
           {/* Dynamic Wallet Option (if enabled) */}
-          {DYNAMIC_ENABLED && DynamicWidget && (
+          {DYNAMIC_ENABLED && (
             <div className="p-4 bg-mc-obsidian border-2 border-mc-diamond rounded-sm">
               <div className="flex items-center gap-3 mb-3">
                 <span className="text-2xl">✨</span>
@@ -198,7 +194,7 @@ export const WalletConnectModal: React.FC<WalletConnectModalProps> = ({
           )}
 
           {/* Divider (if Dynamic is enabled) */}
-          {DYNAMIC_ENABLED && DynamicWidget && (
+          {DYNAMIC_ENABLED && (
             <div className="flex items-center gap-4">
               <div className="flex-1 h-px bg-mc-ui-border-dark"></div>
               <span className="text-mc-text-dark text-xs">or</span>

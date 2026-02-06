@@ -8,21 +8,14 @@
  * - Better mobile experience
  * 
  * Get your environment ID from: https://app.dynamic.xyz/
- * 
- * NOTE: Dynamic SDK packages must be installed separately:
- * npm install @dynamic-labs/sdk-react-core @dynamic-labs/ethereum
  */
 
 import React from 'react';
+import { DynamicContextProvider, DynamicWidget } from '@dynamic-labs/sdk-react-core';
+import { EthereumWalletConnectors } from '@dynamic-labs/ethereum';
 
-// Get Dynamic environment ID from env or use default for development
+// Get Dynamic environment ID from env
 const DYNAMIC_ENVIRONMENT_ID = import.meta.env.VITE_DYNAMIC_ENVIRONMENT_ID || '';
-
-// SDK components - will remain null until packages are installed
-// To enable Dynamic, install: npm install @dynamic-labs/sdk-react-core @dynamic-labs/ethereum
-const DynamicContextProvider: React.ComponentType<any> | null = null;
-const DynamicWidget: React.ComponentType<any> | null = null;
-const EthereumWalletConnectors: any = null;
 
 interface DynamicWalletProviderProps {
   children: React.ReactNode;
@@ -54,12 +47,8 @@ const cssOverrides = `
 `;
 
 export const DynamicWalletProvider: React.FC<DynamicWalletProviderProps> = ({ children }) => {
-  // If no Dynamic environment ID is set or SDK not available, just render children
-  if (!DYNAMIC_ENVIRONMENT_ID || !DynamicContextProvider) {
-    if (DYNAMIC_ENVIRONMENT_ID && !DynamicContextProvider) {
-      console.warn('⚠️ VITE_DYNAMIC_ENVIRONMENT_ID is set but Dynamic SDK is not installed.');
-      console.warn('   Run: npm install @dynamic-labs/sdk-react-core @dynamic-labs/ethereum');
-    }
+  // If no Dynamic environment ID is set, just render children
+  if (!DYNAMIC_ENVIRONMENT_ID) {
     return <>{children}</>;
   }
 
@@ -67,7 +56,7 @@ export const DynamicWalletProvider: React.FC<DynamicWalletProviderProps> = ({ ch
     <DynamicContextProvider
       settings={{
         environmentId: DYNAMIC_ENVIRONMENT_ID,
-        walletConnectors: EthereumWalletConnectors ? [EthereumWalletConnectors] : [],
+        walletConnectors: [EthereumWalletConnectors],
         cssOverrides,
         // Enable these features for better UX
         eventsCallbacks: {
@@ -99,8 +88,8 @@ export const DynamicWalletProvider: React.FC<DynamicWalletProviderProps> = ({ ch
  * A styled wrapper around the DynamicWidget that matches the Minecraft theme
  */
 export const DynamicWalletButton: React.FC = () => {
-  // If no Dynamic environment ID is set or SDK not available, return null
-  if (!DYNAMIC_ENVIRONMENT_ID || !DynamicWidget) {
+  // If no Dynamic environment ID is set, return null
+  if (!DYNAMIC_ENVIRONMENT_ID) {
     return null;
   }
 
